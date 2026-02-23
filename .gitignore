@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+*.pyo
+.env
+*.egg-info/
+venv/
+.venv/
+node_modules/
+analysis/plots/
+*.log
+.DS_Store
+Thumbs.db
+*.tsv
+*.tsv.gz
