@@ -1,14 +1,18 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>IMDb Clone — Browse Movies, Series & People</title>
-    <meta name="description" content="An IMDb-like database to browse movies, TV series, episodes, and people with ratings and detailed cast/crew information.">
+    <meta name="description"
+        content="An IMDb-like database to browse movies, TV series, episodes, and people with ratings and detailed cast/crew information.">
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
     <link rel="stylesheet" href="/static/style.css">
 </head>
+
 <body>
     <!-- ════════════════ HEADER / NAV ════════════════ -->
     <header id="header">
@@ -23,16 +27,55 @@
                     <option value="series">TV Series</option>
                     <option value="person">People</option>
                 </select>
-                <input type="text" id="searchInput" placeholder="Search movies, series, people..."
-                       autocomplete="off">
+                <input type="text" id="searchInput" placeholder="Search movies, series, people..." autocomplete="off">
                 <button id="searchBtn" onclick="doSearch()">🔍</button>
             </div>
             <div class="header-controls">
+                <button class="filter-toggle-btn" id="filterToggleBtn" onclick="toggleFilters()">
+                    <span>⚙</span> Filters
+                </button>
                 <label class="adult-toggle" title="Include adult content">
                     <input type="checkbox" id="adultToggle">
                     <span>18+</span>
                 </label>
             </div>
+        </div>
+
+        <!-- ═══ Collapsible Filter Panel ═══ -->
+        <div id="filterPanel" class="filter-panel collapsed">
+            <div class="filter-panel-inner">
+                <div class="filter-group">
+                    <label>Year From</label>
+                    <input type="number" id="filterYearFrom" min="1890" max="2030" placeholder="1890">
+                </div>
+                <div class="filter-group">
+                    <label>Year To</label>
+                    <input type="number" id="filterYearTo" min="1890" max="2030" placeholder="2030">
+                </div>
+                <div class="filter-group">
+                    <label>Genre</label>
+                    <select id="filterGenre">
+                        <option value="">All Genres</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>Min Rating</label>
+                    <input type="number" id="filterMinRating" min="0" max="10" step="0.5" placeholder="0">
+                </div>
+                <div class="filter-group">
+                    <label>Sort By</label>
+                    <select id="filterSortBy">
+                        <option value="">Relevance</option>
+                        <option value="rating">Rating</option>
+                        <option value="year">Year</option>
+                        <option value="votes">Popularity</option>
+                    </select>
+                </div>
+                <div class="filter-actions">
+                    <button class="filter-clear-btn" onclick="clearFilters()">✕ Clear</button>
+                </div>
+            </div>
+            <div id="activeFilters" class="active-filters"></div>
         </div>
     </header>
 
@@ -49,9 +92,11 @@
 
     <!-- ════════════════ FOOTER ════════════════ -->
     <footer>
-        <p>IMDb Clone — Educational Project · Data from <a href="https://www.imdb.com/interfaces/" target="_blank">IMDb Non-Commercial Datasets</a></p>
+        <p>IMDb Clone — Educational Project · Data from <a href="https://www.imdb.com/interfaces/" target="_blank">IMDb
+                Non-Commercial Datasets</a></p>
     </footer>
 
     <script src="/static/app.js"></script>
 </body>
+
 </html>

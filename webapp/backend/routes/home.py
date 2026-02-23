@@ -2,22 +2,7 @@
 Home Routes
 ============
 GET /api/home — Returns Top Rated + Most Voted lists for the homepage.
-
-Both lists are cached for 5 minutes to avoid expensive sorts on every request.
-
-Query design:
-  - Top Rated: titles with ≥25,000 votes, sorted by average_rating DESC.
-    The vote threshold prevents obscure titles with few votes from dominating.
-  - Most Voted: sorted by num_votes DESC (pure popularity).
-  - Both exclude tvEpisode type (episodes are not standalone titles).
-  - Adult filtering applied via includeAdult parameter (default: exclude).
-
-Response shape:
-{
-  "topRated": [{ tconst, primary_title, start_year, runtime_minutes, title_type,
-                 average_rating, num_votes, genres }],
-  "mostVoted": [same shape]
-}
+Cached for 5 minutes. Includes poster_url for card display.
 """
 
 import time
@@ -26,9 +11,8 @@ from ..db import query
 
 home_bp = Blueprint("home", __name__)
 
-# Simple in-memory cache
 _cache = {}
-CACHE_TTL = 300  # 5 minutes
+CACHE_TTL = 300
 
 
 def _cached(key, fn):
@@ -49,7 +33,7 @@ def home():
     def fetch():
         top_rated = query(f"""
             SELECT t.tconst, t.primary_title, t.start_year, t.runtime_minutes,
-                   t.title_type, r.average_rating, r.num_votes,
+                   t.title_type, t.poster_url, r.average_rating, r.num_votes,
                    COALESCE(
                        (SELECT string_agg(g.name, ', ' ORDER BY g.name)
                         FROM title_genre tg JOIN genre g USING(genre_id)
@@ -66,7 +50,7 @@ def home():
 
         most_voted = query(f"""
             SELECT t.tconst, t.primary_title, t.start_year, t.runtime_minutes,
-                   t.title_type, r.average_rating, r.num_votes,
+                   t.title_type, t.poster_url, r.average_rating, r.num_votes,
                    COALESCE(
                        (SELECT string_agg(g.name, ', ' ORDER BY g.name)
                         FROM title_genre tg JOIN genre g USING(genre_id)

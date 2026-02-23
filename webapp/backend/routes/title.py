@@ -1,21 +1,8 @@
 """
 Title Routes
 =============
-GET /api/title/:tconst        — Title summary page (info + rating + directors/writers + top cast)
+GET /api/title/:tconst        — Title summary (info + rating + genres + directors/writers + top 15 cast + poster)
 GET /api/title/:tconst/full-credits — Full cast & crew grouped by category
-
-Query design:
-  - Summary: single lookup by tconst PK → O(1). LEFT JOIN rating (not all titles rated).
-    Directors/writers and top-5 cast fetched as sub-queries for clean JSON structure.
-  - Full credits: JOIN principal + person, ordered by category priority then billing order.
-    Grouping done in Python to build nested JSON (director[], writer[], actor[], etc.).
-
-Response shapes:
-  Summary: { tconst, primary_title, original_title, title_type, start_year, end_year,
-             runtime_minutes, is_adult, average_rating, num_votes, genres,
-             directors: [{nconst, primary_name}], writers: [...], cast: [...top 5] }
-
-  Full credits: { tconst, primary_title, credits: { "director": [...], "actor": [...], ... } }
 """
 
 from flask import Blueprint, jsonify
@@ -24,14 +11,16 @@ from collections import OrderedDict
 
 title_bp = Blueprint("title", __name__)
 
+PLACEHOLDER_POSTER = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 300 450'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='%231a1a2e'/%3E%3Cstop offset='1' stop-color='%2316213e'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='300' height='450' fill='url(%23g)'/%3E%3Ctext x='150' y='200' text-anchor='middle' font-size='64' fill='%23333'%3E%F0%9F%8E%AC%3C/text%3E%3Ctext x='150' y='260' text-anchor='middle' font-size='16' fill='%23555' font-family='sans-serif'%3ENo Poster%3C/text%3E%3C/svg%3E"
+
 
 @title_bp.route("/api/title/<tconst>")
 def title_summary(tconst):
-    # Main title info + rating
+    # Main title info + rating + poster
     info = query("""
         SELECT t.tconst, t.primary_title, t.original_title, t.title_type,
                t.start_year, t.end_year, t.runtime_minutes, t.is_adult,
-               r.average_rating, r.num_votes
+               t.poster_url, r.average_rating, r.num_votes
         FROM title t
         LEFT JOIN rating r ON r.tconst = t.tconst
         WHERE t.tconst = %s
@@ -39,6 +28,10 @@ def title_summary(tconst):
 
     if not info:
         return jsonify({"error": "Title not found"}), 404
+
+    # Ensure poster_url has a value
+    if not info.get("poster_url"):
+        info["poster_url"] = PLACEHOLDER_POSTER
 
     # Genres
     genres = query("""
@@ -61,14 +54,14 @@ def title_summary(tconst):
     info["directors"] = [c for c in crew if c["category"] == "director"]
     info["writers"] = [c for c in crew if c["category"] == "writer"]
 
-    # Top 5 cast (actors/actresses)
+    # Top 15 cast (actors/actresses)
     cast = query("""
         SELECT p.nconst, p.primary_name, pr.characters, pr.ordering
         FROM principal pr
         JOIN person p ON p.nconst = pr.nconst
         WHERE pr.tconst = %s AND pr.category IN ('actor', 'actress')
         ORDER BY pr.ordering
-        LIMIT 5
+        LIMIT 15
     """, (tconst,))
     info["cast"] = cast
 

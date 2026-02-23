@@ -19,13 +19,16 @@ load_dotenv(PROJECT_ROOT / ".env")
 
 FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
 
-from .db import init_pool, get_conn, put_conn
+from .db import init_pool
 from .routes.health import health_bp
 from .routes.home import home_bp
 from .routes.title import title_bp
 from .routes.series import series_bp
 from .routes.person import person_bp
 from .routes.search import search_bp
+from .routes.posters import poster_bp
+from .routes.streaming import streaming_bp
+from .routes.genres import genres_bp
 
 
 def create_app():
@@ -74,5 +77,8 @@ def create_app():
     app.register_blueprint(series_bp)
     app.register_blueprint(person_bp)
     app.register_blueprint(search_bp)
+    app.register_blueprint(poster_bp)
+    app.register_blueprint(streaming_bp)
+    app.register_blueprint(genres_bp)
 
     return app

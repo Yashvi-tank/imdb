@@ -1,6 +1,7 @@
 """
 Database connection pool using psycopg2.
 Provides get_conn() / put_conn() for request-scoped connections.
+Enforces 10-second statement timeout for performance safety.
 """
 
 import os
@@ -20,6 +21,7 @@ def init_pool(minconn=2, maxconn=10):
         user=os.getenv("DB_USER", "postgres"),
         password=os.getenv("DB_PASS", ""),
         dbname=os.getenv("DB_NAME", "imdb_clone"),
+        options="-c statement_timeout=10000",   # 10s hard limit
     )
 
 
