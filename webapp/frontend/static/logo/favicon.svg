@@ -1,0 +1,11 @@
+<!-- CineVault Favicon — 32x32 optimized -->
+<!-- Simplified CV mark for tiny sizes -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
+  <rect width="32" height="32" rx="6" fill="#0a0a14"/>
+  <!-- C arc simplified -->
+  <path d="M16 4 C9.4 4 4 9.4 4 16 C4 22.6 9.4 28 16 28 C20.2 28 23.8 25.8 26 22.5"
+        stroke="#00d4ff" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+  <!-- V simplified -->
+  <path d="M12 10 L16.5 23 L21 10"
+        stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+</svg>

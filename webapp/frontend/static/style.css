@@ -141,24 +141,21 @@ body::before {
     letter-spacing: -0.5px;
 }
 
-.logo-icon {
-    font-size: 1.6rem;
-    color: var(--cyan);
-    filter: drop-shadow(0 0 8px var(--cyan-glow));
-    animation: starPulse 3s ease-in-out infinite;
+.logo-mark {
+    flex-shrink: 0;
+    filter: drop-shadow(0 0 6px var(--cyan-glow));
+    animation: markPulse 4s ease-in-out infinite;
 }
 
-@keyframes starPulse {
+@keyframes markPulse {
 
     0%,
     100% {
-        filter: drop-shadow(0 0 6px var(--cyan-glow));
-        transform: scale(1);
+        filter: drop-shadow(0 0 4px var(--cyan-glow));
     }
 
     50% {
-        filter: drop-shadow(0 0 14px var(--cyan-glow));
-        transform: scale(1.1);
+        filter: drop-shadow(0 0 12px var(--cyan-glow));
     }
 }
 

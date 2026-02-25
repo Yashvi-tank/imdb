@@ -1,0 +1,15 @@
+<!-- CineVault Logo — Icon Only (Symbol Mark) -->
+<!-- CV Monogram — works at any size from 16px to 512px -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+
+  <!-- Outer C arc — aperture-inspired open circle -->
+  <path d="M32 2 C15.4 2 2 15.4 2 32 C2 48.6 15.4 62 32 62 C41 62 49 57.8 54.2 51.2"
+        stroke="#00d4ff" stroke-width="4.5" stroke-linecap="round" fill="none"/>
+
+  <!-- Inner V chevron — vault symbol -->
+  <path d="M22 18 L33 46 L44 18"
+        stroke="#ffffff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+
+  <!-- Film-frame accent dash -->
+  <line x1="50" y1="32" x2="60" y2="32" stroke="#00d4ff" stroke-width="2.5" stroke-linecap="round"/>
+</svg>
