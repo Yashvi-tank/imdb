@@ -1,136 +1,257 @@
-# IMDb Clone & Data Analysis
+# 🎬 CineVault — Cinematic Movie Discovery Platform
 
-A full-stack IMDb-like web application with comprehensive data import, SQL queries, and data analysis.
+A premium, cinematic movie discovery platform powered by the **TMDB API** and backed by a **PostgreSQL** database. Built with a modern glass-morphic UI featuring animated backgrounds, 3D card effects, and an immersive browsing experience.
 
----
-
-## 📂 Repository Structure
-
-```
-imdb_database/
-├── .env                    # Database credentials (not committed)
-├── .env.example            # Template for .env
-├── .gitignore
-├── requirements.txt        # Python dependencies
-├── run.py                  # Start Flask server
-├── schema/
-│   └── schema.sql          # Database schema (7 tables + indexes)
-├── import/
-│   ├── import_data.py      # Bulk-load IMDb TSV files
-│   └── seed_test_data.sql  # Small test dataset (no TSVs needed)
-├── queries/
-│   ├── web_queries.sql     # 12 documented web endpoint queries
-│   └── analysis_queries.sql# 4 documented analysis queries
-├── webapp/
-│   ├── backend/
-│   │   ├── app.py          # Flask app (CORS, timing, routes)
-│   │   ├── db.py           # PostgreSQL connection pool
-│   │   └── routes/         # API route blueprints
-│   │       ├── health.py   # GET /api/health
-│   │       ├── home.py     # GET /api/home
-│   │       ├── title.py    # GET /api/title/:tconst (+ full-credits)
-│   │       ├── series.py   # GET /api/series/:tconst/seasons|episodes
-│   │       ├── person.py   # GET /api/person/:nconst
-│   │       └── search.py   # GET /api/search?q=...
-│   └── frontend/
-│       ├── index.html      # Single-page app
-│       └── static/
-│           ├── style.css   # Dark theme + gold accents
-│           └── app.js      # SPA router + page renderers
-├── analysis/
-│   └── imdb_analysis.py    # 3 matplotlib visualizations
-├── docs/
-│   ├── schema.md           # Schema documentation + ER diagram
-│   └── queries.md          # Query documentation (purpose, design)
-└── IMDB_Clone_SQL_Query_Report.docx
-```
+> **Live Features:** Real-time movie search, genre-based mood discovery, streaming provider links, full cast & crew details, and more.
 
 ---
 
-## 🚀 Quick Start
+## ✨ Features
 
-### Prerequisites
-- **Python 3.8+**
-- **PostgreSQL 12+**
+### 🔍 Smart Search
+- **Debounced live search** (350ms) across movies, TV shows, and people
+- Powered by TMDB's multi-search API
+- Falls back to local PostgreSQL database when TMDB is unavailable
 
-### 1. Create Database
-```sql
-CREATE DATABASE imdb_clone;
-```
+### 🎭 Mood Discovery
+- **10 interactive genre bubbles** with unique glow effects
+- Click any mood (Action 💥, Comedy 😂, Horror 👻, Sci-Fi 🚀, etc.) to instantly discover movies
+- Each bubble has a custom animated neon glow
 
-### 2. Configure Environment
-```bash
-cp .env.example .env
-# Edit .env with your PostgreSQL credentials
-```
+### 🎬 Cinematic Hero Banner
+- **Auto-rotating backdrop** featuring 5 trending movies
+- Full-width cinematic imagery with gradient overlays
+- Smooth crossfade transitions every 7 seconds
 
-### 3. Install Dependencies
-```bash
-pip install -r requirements.txt
-```
+### 🃏 3D Glass Cards
+- **Glassmorphism design** with frosted glass effect
+- **3D tilt on hover** — cards follow your cursor with perspective transforms
+- Rating badges, type overlays, and smooth image zoom
 
-### 4. Apply Schema
-```bash
-psql -U postgres -d imdb_clone -f schema/schema.sql
-```
+### 📖 Rich Detail Pages
+- Full-width **cinematic backdrops** with dual gradient overlay
+- Animated **star-glow rating badge**
+- Complete **cast grid** with profile photos
+- **Director & writer credits**
+- **Watch provider logos** that link directly to streaming platforms
 
-### 5. Load Data (choose one)
+### 📺 Where to Watch
+- Shows **streaming platforms** (Netflix, Disney+, Amazon, Apple TV, etc.)
+- **Each logo links directly** to that platform's search for the specific movie
+- Supports 15+ streaming services with smart URL mapping
 
-**Option A — Test data** (instant, no TSV files needed):
-```bash
-psql -U postgres -d imdb_clone -f import/seed_test_data.sql
-```
+### 📄 Pagination
+- Full pagination for search and discover results
+- Prev/Next navigation with page indicators
 
-**Option B — Full IMDb data** (requires downloaded TSV files):
-```bash
-# Place TSV files in: <parent>/import/data/
-# Files: title.basics.tsv, name.basics.tsv, title.ratings.tsv, title.principals.tsv
-python import/import_data.py
-```
-
-### 6. Run the App
-```bash
-python run.py
-```
-Open: **http://localhost:5000**
-
-### 7. Run Analysis
-```bash
-python analysis/imdb_analysis.py
-# Plots saved to analysis/plots/
-```
-
----
-
-## 🌐 API Endpoints
-
-| Endpoint | Description |
-|----------|-------------|
-| `GET /api/health` | Server + DB connectivity check |
-| `GET /api/home` | Top Rated + Most Voted (cached 5min) |
-| `GET /api/title/:tconst` | Title summary: info, rating, genres, crew, cast |
-| `GET /api/title/:tconst/full-credits` | Full cast & crew grouped by category |
-| `GET /api/series/:tconst/seasons` | List of seasons for a series |
-| `GET /api/series/:tconst/episodes?season=N` | Episodes in a season |
-| `GET /api/person/:nconst` | Person info + filmography by role |
-| `GET /api/search?q=...&type=movie\|series\|person` | Search with pagination |
-
-All listing endpoints support `?includeAdult=true` (default: false).
-
----
-
-## 📊 Data Analysis
-
-Three analyses with matplotlib visualizations:
-1. **Ratings by Decade** — dual-axis chart (count + avg rating)
-2. **Top Directors** — horizontal bar chart (min 5 films)
-3. **Genre Popularity** — multi-line chart over decades (1950+)
+### ⚡ Performance
+- **Zero external JS libraries** — pure vanilla JavaScript
+- CSS-only animations (GPU-accelerated transforms)
+- Lazy loading on all images
+- In-memory API response caching (10-min TTL)
+- PostgreSQL connection pooling with 10s query timeout
 
 ---
 
 ## 🛠️ Tech Stack
 
-- **Database**: PostgreSQL 12+
-- **Backend**: Python 3 + Flask + psycopg2
-- **Frontend**: Vanilla HTML/CSS/JS (SPA)
-- **Analysis**: pandas + matplotlib
+| Layer | Technology |
+|---|---|
+| **Backend** | Python · Flask |
+| **Database** | PostgreSQL · psycopg2 |
+| **Frontend** | Vanilla JavaScript · HTML5 · CSS3 |
+| **API** | TMDB API v3 |
+| **Design** | Glassmorphism · Neon Glow · CSS Animations |
+
+---
+
+## 📁 Project Structure
+
+```
+imdb_database/
+├── webapp/
+│   ├── backend/
+│   │   ├── app.py              # Flask application + blueprint registration
+│   │   ├── db.py               # PostgreSQL connection pool
+│   │   ├── routes/
+│   │   │   ├── home.py         # GET /api/home — trending + top rated
+│   │   │   ├── search.py       # GET /api/search — multi-search
+│   │   │   ├── discover.py     # GET /api/discover — filtered discovery
+│   │   │   ├── title.py        # GET /api/title/<id> — movie/TV detail
+│   │   │   ├── person.py       # GET /api/person/<id> — person detail
+│   │   │   ├── genres.py       # GET /api/genres — genre list
+│   │   │   ├── series.py       # GET /api/series/<id> — episodes
+│   │   │   ├── credits.py      # GET /api/credits/<id> — full cast
+│   │   │   ├── stats.py        # GET /api/stats — database stats
+│   │   │   └── health.py       # GET /api/health — health check
+│   │   └── services/
+│   │       └── tmdb.py         # TMDB API client with caching
+│   └── frontend/
+│       ├── index.html          # Single Page Application shell
+│       └── static/
+│           ├── app.js          # Frontend application logic
+│           └── style.css       # Cinematic glass theme
+├── schema/
+│   └── schema.sql              # PostgreSQL database schema
+├── run.py                      # Application entry point
+├── .env                        # Environment variables (not committed)
+├── .env.example                # Environment variable template
+└── README.md                   # This file
+```
+
+---
+
+## 🚀 Getting Started
+
+### Prerequisites
+
+- **Python 3.8+**
+- **PostgreSQL 12+**
+- **TMDB API Key** (free) — [Get one here](https://www.themoviedb.org/settings/api)
+
+### 1. Clone the Repository
+
+```bash
+git clone https://github.com/Yashvi-tank/imdb.git
+cd imdb_database
+```
+
+### 2. Set Up the Database
+
+```sql
+-- Create the database
+CREATE DATABASE imdb_clone;
+
+-- Run the schema
+\i schema/schema.sql
+```
+
+### 3. Configure Environment Variables
+
+```bash
+cp .env.example .env
+```
+
+Edit `.env` with your credentials:
+
+```env
+DB_HOST=localhost
+DB_PORT=5432
+DB_USER=postgres
+DB_PASS=your_password
+DB_NAME=imdb_clone
+FLASK_PORT=5000
+FLASK_DEBUG=true
+TMDB_API_KEY=your_tmdb_api_key_here
+```
+
+### 4. Install Dependencies
+
+```bash
+pip install flask psycopg2-binary python-dotenv flask-cors
+```
+
+### 5. Run the Application
+
+```bash
+python run.py
+```
+
+Open **http://localhost:5000** in your browser.
+
+---
+
+## 🔑 Environment Variables
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `DB_HOST` | Yes | `localhost` | PostgreSQL host |
+| `DB_PORT` | Yes | `5432` | PostgreSQL port |
+| `DB_USER` | Yes | `postgres` | Database user |
+| `DB_PASS` | Yes | — | Database password |
+| `DB_NAME` | Yes | `imdb_clone` | Database name |
+| `TMDB_API_KEY` | Recommended | — | TMDB API key for live data |
+| `FLASK_PORT` | No | `5000` | Server port |
+| `FLASK_DEBUG` | No | `false` | Debug mode |
+
+> **Note:** Without `TMDB_API_KEY`, the app falls back to local database data. All TMDB-powered features (real posters, live search, streaming providers, etc.) require the key.
+
+---
+
+## 🎨 Design System
+
+```
+Theme: "Cinematic Glass + Neon Glow + Motion Depth"
+
+Backgrounds:  #06060c → #0a0a14 → #10101c (deep void to surface)
+Accent Cyan:  #00d4ff (primary glow, links, search)
+Accent Purple:#a855f7 (filters, tags, badges)
+Accent Amber: #f59e0b (ratings, stars)
+Glass Effect:  rgba(16,16,30,0.55) + backdrop-filter: blur(20px)
+Typography:    Inter (300–900 weights)
+```
+
+### Key Visual Features
+- 🌊 **Animated ambient background** — slow-drifting radial gradients
+- 🪟 **Glassmorphism** — frosted glass cards, navbar, and panels
+- 💫 **3D tilt cards** — perspective transforms following cursor position
+- ✨ **Neon glow effects** — focus states, hover interactions, star ratings
+- 🎯 **Ripple effects** — material-style click feedback on buttons
+- 🎠 **Scroll animations** — fade + slide entrance on scroll
+
+---
+
+## 📡 API Endpoints
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/health` | Health check |
+| `GET` | `/api/home` | Trending + Top Rated movies |
+| `GET` | `/api/search?q=&page=` | Multi-search (movies, TV, people) |
+| `GET` | `/api/discover?type=&genre=&year=&rating=&sort=&page=` | Filtered discovery |
+| `GET` | `/api/title/<id>?type=` | Movie/TV detail with cast, providers, similar |
+| `GET` | `/api/person/<id>` | Person detail with filmography |
+| `GET` | `/api/genres` | Genre list |
+| `GET` | `/api/series/<id>/seasons` | Season list |
+| `GET` | `/api/series/<id>/season/<num>` | Episode details |
+
+---
+
+## 📸 Screenshots
+
+| Home — Hero Banner & Mood Discovery | Movie Detail — Cinematic View |
+|---|---|
+| Hero banner auto-rotates through trending movies. Mood bubbles glow on hover. | Full backdrop, cast grid, watch providers with direct links. |
+
+| Search Results | Mood Discovery |
+|---|---|
+| Live search with debounce, real posters, pagination. | 10 genre bubbles with unique glow colors. |
+
+---
+
+## 🧑‍💻 Developer
+
+**Yashvi Tank**
+
+- GitHub: [@Yashvi-tank](https://github.com/Yashvi-tank)
+
+---
+
+## 📜 License
+
+This project is for educational purposes as part of the **Relational Database** course at **EPITA**.
+
+---
+
+## 🙏 Acknowledgments
+
+- [TMDB (The Movie Database)](https://www.themoviedb.org/) — Movie data and images
+- [Inter Font](https://fonts.google.com/specimen/Inter) — Typography
+- [PostgreSQL](https://www.postgresql.org/) — Database engine
+- [Flask](https://flask.palletsprojects.com/) — Python web framework
+
+---
+
+<p align="center">
+  Built with 🎬 by <strong>Yashvi Tank</strong> · Powered by <a href="https://www.themoviedb.org/">TMDB</a>
+</p>
