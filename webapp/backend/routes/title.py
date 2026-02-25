@@ -53,9 +53,11 @@ def title_summary(tid):
         # Watch providers
         wp = raw.get("watch/providers", {}).get("results", {})
         providers = []
+        watch_link = ""
         for country in ("US", "GB", "FR", "DE", "IN"):
             cp = wp.get(country)
             if cp:
+                watch_link = cp.get("link", "")
                 for prov in cp.get("flatrate", []) + cp.get("rent", []) + cp.get("buy", []):
                     name = prov.get("provider_name", "")
                     if not any(p["name"] == name for p in providers):
@@ -72,7 +74,8 @@ def title_summary(tid):
 
         info.update({
             "cast": cast, "directors": directors, "writers": writers,
-            "providers": providers, "similar": similar, "source": "tmdb",
+            "providers": providers, "watch_link": watch_link,
+            "similar": similar, "source": "tmdb",
             "tagline": raw.get("tagline", ""),
             "status": raw.get("status", ""),
             "number_of_seasons": raw.get("number_of_seasons"),

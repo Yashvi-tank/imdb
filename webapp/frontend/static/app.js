@@ -421,12 +421,13 @@ async function loadTitle(p) {
 
         /* Watch Providers */
         if (d.providers?.length) {
+            const watchUrl = d.watch_link || '#';
             html += `<div class="providers-section">
                 <h3>📺 Where to Watch</h3>
                 <div class="providers-list">
-                    ${d.providers.map(pv => `<div class="provider-badge" title="${esc(pv.provider_name)}">
-                        <img src="${poster(pv.logo_path, 'w92')}" alt="${esc(pv.provider_name)}" loading="lazy">
-                    </div>`).join('')}
+                    ${d.providers.map(pv => `<a href="${esc(watchUrl)}" target="_blank" rel="noopener" class="provider-badge" title="${esc(pv.name || pv.provider_name)} — Click to watch">
+                        <img src="${pv.logo || poster(pv.logo_path, 'w92')}" alt="${esc(pv.name || pv.provider_name)}" loading="lazy">
+                    </a>`).join('')}
                 </div>
             </div>`;
         }
