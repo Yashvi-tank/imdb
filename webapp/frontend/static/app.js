@@ -419,15 +419,49 @@ async function loadTitle(p) {
             </div>
         </div>`;
 
-        /* Watch Providers */
+        /* Watch Providers — per-provider deep links */
         if (d.providers?.length) {
-            const watchUrl = d.watch_link || '#';
+            const movieTitle = encodeURIComponent(d.title || d.primary_title || '');
+            const providerUrls = {
+                'netflix': `https://www.netflix.com/search?q=${movieTitle}`,
+                'amazon prime video': `https://www.amazon.com/s?k=${movieTitle}&i=instant-video`,
+                'amazon video': `https://www.amazon.com/s?k=${movieTitle}&i=instant-video`,
+                'disney plus': `https://www.disneyplus.com/search/${movieTitle}`,
+                'apple tv plus': `https://tv.apple.com/search?term=${movieTitle}`,
+                'apple tv': `https://tv.apple.com/search?term=${movieTitle}`,
+                'apple itunes': `https://tv.apple.com/search?term=${movieTitle}`,
+                'google play movies': `https://play.google.com/store/search?q=${movieTitle}&c=movies`,
+                'youtube': `https://www.youtube.com/results?search_query=${movieTitle}+full+movie`,
+                'hulu': `https://www.hulu.com/search?q=${movieTitle}`,
+                'max': `https://play.max.com/search?q=${movieTitle}`,
+                'hbo max': `https://play.max.com/search?q=${movieTitle}`,
+                'paramount plus': `https://www.paramountplus.com/search/?q=${movieTitle}`,
+                'paramount+ amazon channel': `https://www.paramountplus.com/search/?q=${movieTitle}`,
+                'peacock': `https://www.peacocktv.com/search?q=${movieTitle}`,
+                'peacock premium': `https://www.peacocktv.com/search?q=${movieTitle}`,
+                'crunchyroll': `https://www.crunchyroll.com/search?q=${movieTitle}`,
+                'vudu': `https://www.vudu.com/content/movies/search?searchString=${movieTitle}`,
+                'microsoft store': `https://www.microsoft.com/en-us/search/shop/movies-tv?q=${movieTitle}`,
+                'mubi': `https://mubi.com/en/search?query=${movieTitle}`,
+                'starz': `https://www.starz.com/search?q=${movieTitle}`,
+            };
+            function getProviderUrl(name) {
+                const key = (name || '').toLowerCase().trim();
+                for (const [pattern, url] of Object.entries(providerUrls)) {
+                    if (key.includes(pattern) || pattern.includes(key)) return url;
+                }
+                return `https://www.google.com/search?q=watch+${movieTitle}+on+${encodeURIComponent(name)}`;
+            }
             html += `<div class="providers-section">
                 <h3>📺 Where to Watch</h3>
                 <div class="providers-list">
-                    ${d.providers.map(pv => `<a href="${esc(watchUrl)}" target="_blank" rel="noopener" class="provider-badge" title="${esc(pv.name || pv.provider_name)} — Click to watch">
-                        <img src="${pv.logo || poster(pv.logo_path, 'w92')}" alt="${esc(pv.name || pv.provider_name)}" loading="lazy">
-                    </a>`).join('')}
+                    ${d.providers.map(pv => {
+                const pvName = pv.name || pv.provider_name || '';
+                const pvUrl = getProviderUrl(pvName);
+                return `<a href="${esc(pvUrl)}" target="_blank" rel="noopener" class="provider-badge" title="Watch on ${esc(pvName)}">
+                            <img src="${pv.logo || poster(pv.logo_path, 'w92')}" alt="${esc(pvName)}" loading="lazy">
+                        </a>`;
+            }).join('')}
                 </div>
             </div>`;
         }

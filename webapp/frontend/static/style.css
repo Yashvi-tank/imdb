@@ -970,6 +970,7 @@ body::before {
 }
 
 .provider-badge {
+    display: block;
     width: 50px;
     height: 50px;
     border-radius: var(--radius);
@@ -977,11 +978,14 @@ body::before {
     background: var(--bg-surface);
     border: 1px solid var(--glass-border);
     transition: all var(--transition);
+    text-decoration: none;
+    cursor: pointer;
 }
 
 .provider-badge:hover {
-    transform: scale(1.12);
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    transform: scale(1.15);
+    box-shadow: 0 4px 20px rgba(0, 212, 255, 0.2);
+    border-color: var(--cyan);
 }
 
 .provider-badge img {
