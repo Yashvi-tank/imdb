@@ -1107,3 +1107,458 @@ footer a {
         width: 160px;
     }
 }
+
+/* ════════════════════════════════════════════════════════════
+   v3.0 — TMDB-powered features
+   ════════════════════════════════════════════════════════════ */
+
+/* ── Backdrop ── */
+.title-backdrop {
+    position: relative;
+    width: 100%;
+    max-height: 440px;
+    overflow: hidden;
+    border-radius: 0 0 var(--radius-xl) var(--radius-xl);
+    margin-bottom: 24px;
+}
+
+.title-backdrop img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.backdrop-gradient {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(transparent 40%, var(--bg-primary) 100%);
+}
+
+/* ── Tagline ── */
+.tagline {
+    font-style: italic;
+    color: var(--text-secondary);
+    font-size: 1rem;
+    margin-bottom: 8px;
+}
+
+/* ── Overview ── */
+.overview {
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+    line-height: 1.7;
+    margin: 12px 0;
+    max-width: 640px;
+}
+
+/* ── Crew line ── */
+.crew-line {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    margin: 8px 0;
+}
+
+.crew-line strong {
+    color: var(--text-primary);
+}
+
+/* ── Cast Grid ── */
+.cast-section {
+    margin: 40px 0;
+}
+
+.cast-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    gap: 16px;
+}
+
+.cast-card {
+    background: var(--bg-card);
+    border-radius: var(--radius);
+    overflow: hidden;
+    cursor: pointer;
+    transition: transform var(--transition), box-shadow var(--transition);
+    text-align: center;
+}
+
+.cast-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-glow);
+}
+
+.cast-photo {
+    width: 100%;
+    aspect-ratio: 2/3;
+    object-fit: cover;
+    background: var(--bg-secondary);
+}
+
+.cast-name {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    padding: 8px 8px 2px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.cast-character {
+    font-size: 0.74rem;
+    color: var(--text-muted);
+    padding: 0 8px 8px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* ── Providers / Where to Watch ── */
+.providers-section {
+    margin: 16px 0;
+}
+
+.providers-section h3 {
+    color: var(--text-primary);
+    font-size: 1rem;
+    margin-bottom: 10px;
+}
+
+.providers-list {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.provider-badge {
+    width: 48px;
+    height: 48px;
+    border-radius: var(--radius);
+    overflow: hidden;
+    background: var(--bg-secondary);
+    transition: transform var(--transition);
+}
+
+.provider-badge:hover {
+    transform: scale(1.1);
+}
+
+.provider-badge img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* ── Similar Movies ── */
+.similar-section {
+    margin: 48px 0 24px;
+}
+
+/* ── Title Actions ── */
+.title-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 16px;
+    flex-wrap: wrap;
+}
+
+.action-btn {
+    padding: 10px 20px;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    font-family: var(--font);
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all var(--transition);
+}
+
+.action-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    box-shadow: var(--shadow-glow);
+}
+
+/* ── Pagination ── */
+.pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    margin: 36px 0;
+    padding: 16px 0;
+}
+
+.page-btn {
+    padding: 10px 24px;
+    border-radius: var(--radius);
+    border: 1px solid var(--accent);
+    background: transparent;
+    color: var(--accent);
+    font-family: var(--font);
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition);
+}
+
+.page-btn:hover {
+    background: var(--accent);
+    color: var(--bg-primary);
+}
+
+.page-info {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+/* ── Person Detail ── */
+.person-detail {
+    padding: 24px 0;
+}
+
+.person-header {
+    margin-bottom: 32px;
+}
+
+.person-header-inner {
+    display: flex;
+    gap: 32px;
+    align-items: flex-start;
+}
+
+.person-profile-img {
+    width: 200px;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow);
+    flex-shrink: 0;
+}
+
+.person-meta {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    margin: 8px 0;
+}
+
+.person-bio {
+    color: var(--text-secondary);
+    line-height: 1.7;
+    margin: 12px 0;
+    max-width: 640px;
+}
+
+/* ── Search Info Bar ── */
+.search-results-info {
+    color: var(--text-secondary);
+    font-size: 1rem;
+    margin: 16px 0 20px;
+}
+
+.search-results-info strong {
+    color: var(--accent);
+}
+
+/* ── Empty/Error States ── */
+.empty-state {
+    text-align: center;
+    padding: 80px 20px;
+    color: var(--text-secondary);
+}
+
+.empty-state .icon {
+    font-size: 3rem;
+    margin-bottom: 12px;
+}
+
+.empty-state p {
+    font-size: 1.05rem;
+}
+
+/* ── Credits Groups ── */
+.credits-group {
+    margin: 24px 0;
+    padding: 16px 0;
+    border-bottom: 1px solid var(--border);
+}
+
+.credits-group h3 {
+    color: var(--accent);
+    font-size: 1.1rem;
+    margin-bottom: 12px;
+}
+
+.person-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 6px 0;
+}
+
+.person-name {
+    color: var(--blue);
+    cursor: pointer;
+    font-weight: 500;
+    transition: color var(--transition);
+}
+
+.person-name:hover {
+    color: var(--accent);
+}
+
+.person-role {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+}
+
+/* ── Filmography ── */
+.filmography-group {
+    margin: 20px 0;
+}
+
+.filmography-group h3 {
+    color: var(--accent);
+    margin-bottom: 8px;
+    text-transform: capitalize;
+}
+
+.filmography-item {
+    display: grid;
+    grid-template-columns: 60px 1fr auto;
+    gap: 12px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+    align-items: center;
+}
+
+.filmography-year {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+}
+
+.filmography-title {
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: color var(--transition);
+}
+
+.filmography-title:hover {
+    color: var(--accent);
+}
+
+.filmography-rating {
+    color: var(--accent);
+    font-size: 0.85rem;
+}
+
+/* ── Loading Spinner ── */
+.loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 80px;
+    color: var(--text-secondary);
+}
+
+.spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin-bottom: 16px;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* ── Filter Apply Button ── */
+.filter-apply-btn {
+    padding: 8px 24px;
+    background: var(--accent);
+    color: var(--bg-primary);
+    border: none;
+    border-radius: var(--radius);
+    font-family: var(--font);
+    font-weight: 700;
+    cursor: pointer;
+    transition: all var(--transition);
+}
+
+.filter-apply-btn:hover {
+    background: var(--accent-hover);
+    transform: translateY(-1px);
+}
+
+.filter-clear-btn {
+    padding: 8px 16px;
+    background: transparent;
+    color: var(--text-secondary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    font-family: var(--font);
+    cursor: pointer;
+    transition: all var(--transition);
+}
+
+.filter-clear-btn:hover {
+    color: var(--red);
+    border-color: var(--red);
+}
+
+.filter-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+/* ── Footer ── */
+footer {
+    text-align: center;
+    padding: 24px;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    border-top: 1px solid var(--border);
+    margin-top: 48px;
+}
+
+footer a {
+    color: var(--blue);
+    text-decoration: none;
+}
+
+footer a:hover {
+    color: var(--accent);
+}
+
+@media (max-width: 640px) {
+    .person-header-inner {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+    }
+
+    .person-profile-img {
+        width: 150px;
+    }
+
+    .cast-grid {
+        grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    }
+
+    .title-backdrop {
+        max-height: 250px;
+    }
+
+    .pagination {
+        flex-wrap: wrap;
+    }
+}

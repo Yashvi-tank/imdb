@@ -1,118 +1,157 @@
 """
-Title Routes
-=============
-GET /api/title/:tconst        — Title summary (info + rating + genres + directors/writers + top 15 cast + poster)
-GET /api/title/:tconst/full-credits — Full cast & crew grouped by category
+Title (Detail) — TMDB movie/TV detail with local DB fallback.
+GET /api/title/<id>?type=movie|tv
+GET /api/title/<id>/full-credits
 """
-
-from flask import Blueprint, jsonify
+from flask import Blueprint, jsonify, request
 from ..db import query
+from ..services import tmdb
 from collections import OrderedDict
 
 title_bp = Blueprint("title", __name__)
 
-PLACEHOLDER_POSTER = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 300 450'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='%231a1a2e'/%3E%3Cstop offset='1' stop-color='%2316213e'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='300' height='450' fill='url(%23g)'/%3E%3Ctext x='150' y='200' text-anchor='middle' font-size='64' fill='%23333'%3E%F0%9F%8E%AC%3C/text%3E%3Ctext x='150' y='260' text-anchor='middle' font-size='16' fill='%23555' font-family='sans-serif'%3ENo Poster%3C/text%3E%3C/svg%3E"
+PLACEHOLDER = ("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' "
+    "viewBox='0 0 300 450'%3E%3Crect width='300' height='450' fill='%231a1a2e'/%3E"
+    "%3Ctext x='150' y='225' text-anchor='middle' fill='%23555' font-size='16' "
+    "font-family='sans-serif'%3ENo Poster%3C/text%3E%3C/svg%3E")
 
 
-@title_bp.route("/api/title/<tconst>")
-def title_summary(tconst):
-    # Main title info + rating + poster
+def _is_local_id(tid):
+    return isinstance(tid, str) and tid.startswith("tt")
+
+
+@title_bp.route("/api/title/<tid>")
+def title_summary(tid):
+    media_type = request.args.get("type", "movie")
+
+    # ── TMDB path ──
+    if tmdb.is_available() and not _is_local_id(tid):
+        try:
+            tmdb_id = int(tid)
+        except ValueError:
+            return jsonify({"error": "Invalid ID"}), 400
+
+        raw = tmdb.movie_details(tmdb_id) if media_type != "tv" else tmdb.tv_details(tmdb_id)
+        if not raw:
+            return jsonify({"error": "Title not found"}), 404
+
+        info = tmdb.normalize_title(raw, media_type)
+
+        # Credits
+        credits = raw.get("credits", {})
+        cast = [{
+            "id": c["id"], "name": c["name"], "character": c.get("character", ""),
+            "profile": tmdb.img_url(c.get("profile_path"), "w185"),
+        } for c in credits.get("cast", [])[:20]]
+
+        directors = [{"id": c["id"], "name": c["name"]}
+                     for c in credits.get("crew", []) if c.get("job") == "Director"]
+        writers = [{"id": c["id"], "name": c["name"]}
+                   for c in credits.get("crew", [])
+                   if c.get("job") in ("Screenplay", "Writer", "Story")]
+
+        # Watch providers
+        wp = raw.get("watch/providers", {}).get("results", {})
+        providers = []
+        for country in ("US", "GB", "FR", "DE", "IN"):
+            cp = wp.get(country)
+            if cp:
+                for prov in cp.get("flatrate", []) + cp.get("rent", []) + cp.get("buy", []):
+                    name = prov.get("provider_name", "")
+                    if not any(p["name"] == name for p in providers):
+                        providers.append({
+                            "name": name,
+                            "logo": tmdb.img_url(prov.get("logo_path"), "w92"),
+                        })
+                if providers:
+                    break
+
+        # Similar
+        similar = [tmdb.normalize_title(s, media_type)
+                   for s in raw.get("similar", {}).get("results", [])[:10]]
+
+        info.update({
+            "cast": cast, "directors": directors, "writers": writers,
+            "providers": providers, "similar": similar, "source": "tmdb",
+            "tagline": raw.get("tagline", ""),
+            "status": raw.get("status", ""),
+            "number_of_seasons": raw.get("number_of_seasons"),
+        })
+        return jsonify(info)
+
+    # ── Local DB fallback ──
     info = query("""
-        SELECT t.tconst, t.primary_title, t.original_title, t.title_type,
-               t.start_year, t.end_year, t.runtime_minutes, t.is_adult,
-               t.poster_url, r.average_rating, r.num_votes
-        FROM title t
-        LEFT JOIN rating r ON r.tconst = t.tconst
-        WHERE t.tconst = %s
-    """, (tconst,), one=True)
-
+        SELECT t.tconst AS id, t.primary_title AS title, t.original_title,
+               t.title_type AS media_type, t.start_year AS year, t.end_year,
+               t.runtime_minutes AS runtime, t.is_adult AS adult,
+               t.poster_url AS poster, r.average_rating AS rating, r.num_votes AS votes
+        FROM title t LEFT JOIN rating r ON r.tconst=t.tconst
+        WHERE t.tconst=%s
+    """, (tid,), one=True)
     if not info:
         return jsonify({"error": "Title not found"}), 404
-
-    # Ensure poster_url has a value
-    if not info.get("poster_url"):
-        info["poster_url"] = PLACEHOLDER_POSTER
-
-    # Genres
-    genres = query("""
-        SELECT g.name
-        FROM title_genre tg
-        JOIN genre g USING(genre_id)
-        WHERE tg.tconst = %s
-        ORDER BY g.name
-    """, (tconst,))
+    if not info.get("poster"):
+        info["poster"] = PLACEHOLDER
+    genres = query("SELECT g.name FROM title_genre tg JOIN genre g USING(genre_id) WHERE tg.tconst=%s ORDER BY g.name", (tid,))
     info["genres"] = [g["name"] for g in genres]
-
-    # Directors & Writers
     crew = query("""
-        SELECT p.nconst, p.primary_name, pr.category
-        FROM principal pr
-        JOIN person p ON p.nconst = pr.nconst
-        WHERE pr.tconst = %s AND pr.category IN ('director', 'writer')
+        SELECT p.nconst AS id, p.primary_name AS name, pr.category
+        FROM principal pr JOIN person p ON p.nconst=pr.nconst
+        WHERE pr.tconst=%s AND pr.category IN ('director','writer')
         ORDER BY pr.ordering
-    """, (tconst,))
+    """, (tid,))
     info["directors"] = [c for c in crew if c["category"] == "director"]
     info["writers"] = [c for c in crew if c["category"] == "writer"]
-
-    # Top 15 cast (actors/actresses)
     cast = query("""
-        SELECT p.nconst, p.primary_name, pr.characters, pr.ordering
-        FROM principal pr
-        JOIN person p ON p.nconst = pr.nconst
-        WHERE pr.tconst = %s AND pr.category IN ('actor', 'actress')
-        ORDER BY pr.ordering
-        LIMIT 15
-    """, (tconst,))
+        SELECT p.nconst AS id, p.primary_name AS name, pr.characters AS character
+        FROM principal pr JOIN person p ON p.nconst=pr.nconst
+        WHERE pr.tconst=%s AND pr.category IN ('actor','actress')
+        ORDER BY pr.ordering LIMIT 15
+    """, (tid,))
     info["cast"] = cast
-
+    info["providers"] = []
+    info["similar"] = []
+    info["source"] = "local"
     return jsonify(info)
 
 
-@title_bp.route("/api/title/<tconst>/full-credits")
-def full_credits(tconst):
-    # Verify title exists
-    info = query("SELECT tconst, primary_title FROM title WHERE tconst = %s",
-                 (tconst,), one=True)
+@title_bp.route("/api/title/<tid>/full-credits")
+def full_credits(tid):
+    media_type = request.args.get("type", "movie")
+
+    if tmdb.is_available() and not _is_local_id(tid):
+        try:
+            tmdb_id = int(tid)
+        except ValueError:
+            return jsonify({"error": "Invalid ID"}), 400
+        raw = tmdb.movie_details(tmdb_id) if media_type != "tv" else tmdb.tv_details(tmdb_id)
+        if not raw:
+            return jsonify({"error": "Not found"}), 404
+        credits = raw.get("credits", {})
+        cast = [{"id": c["id"], "name": c["name"], "character": c.get("character", ""),
+                 "profile": tmdb.img_url(c.get("profile_path"), "w185")} for c in credits.get("cast", [])]
+        crew_groups = OrderedDict()
+        for c in credits.get("crew", []):
+            dept = c.get("department", "Other")
+            if dept not in crew_groups:
+                crew_groups[dept] = []
+            crew_groups[dept].append({"id": c["id"], "name": c["name"], "job": c.get("job", "")})
+        title = raw.get("title") or raw.get("name", "")
+        return jsonify({"id": tmdb_id, "title": title, "cast": cast, "crew": crew_groups, "source": "tmdb"})
+
+    # Local fallback
+    info = query("SELECT tconst AS id, primary_title AS title FROM title WHERE tconst=%s", (tid,), one=True)
     if not info:
-        return jsonify({"error": "Title not found"}), 404
-
-    # All principals ordered by category priority then billing
+        return jsonify({"error": "Not found"}), 404
     rows = query("""
-        SELECT pr.category, p.nconst, p.primary_name, pr.job, pr.characters, pr.ordering
-        FROM principal pr
-        JOIN person p ON p.nconst = pr.nconst
-        WHERE pr.tconst = %s
-        ORDER BY
-            CASE pr.category
-                WHEN 'director' THEN 1
-                WHEN 'writer' THEN 2
-                WHEN 'actor' THEN 3
-                WHEN 'actress' THEN 4
-                WHEN 'producer' THEN 5
-                WHEN 'composer' THEN 6
-                WHEN 'cinematographer' THEN 7
-                WHEN 'editor' THEN 8
-                ELSE 9
-            END,
-            pr.ordering
-    """, (tconst,))
-
-    # Group by category
-    credits = OrderedDict()
-    for row in rows:
-        cat = row["category"]
-        if cat not in credits:
-            credits[cat] = []
-        credits[cat].append({
-            "nconst": row["nconst"],
-            "primary_name": row["primary_name"],
-            "job": row["job"],
-            "characters": row["characters"],
-            "ordering": row["ordering"],
-        })
-
-    return jsonify({
-        "tconst": info["tconst"],
-        "primary_title": info["primary_title"],
-        "credits": credits,
-    })
+        SELECT pr.category, p.nconst AS id, p.primary_name AS name, pr.job, pr.characters AS character, pr.ordering
+        FROM principal pr JOIN person p ON p.nconst=pr.nconst
+        WHERE pr.tconst=%s ORDER BY pr.ordering
+    """, (tid,))
+    credits_grouped = OrderedDict()
+    for r in rows:
+        cat = r["category"]
+        if cat not in credits_grouped:
+            credits_grouped[cat] = []
+        credits_grouped[cat].append(r)
+    return jsonify({"id": info["id"], "title": info["title"], "credits": credits_grouped, "source": "local"})
