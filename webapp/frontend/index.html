@@ -4,31 +4,37 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IMDb Clone — Browse Movies, Series & People</title>
-    <meta name="description" content="Browse movies, TV series, and people with real-time data from TMDB.">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
-        rel="stylesheet">
+    <meta name="description" content="CineVault — Premium cinematic movie discovery platform powered by TMDB">
+    <title>CineVault — Movie Discovery</title>
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎬</text></svg>">
     <link rel="stylesheet" href="/static/style.css">
 </head>
 
 <body>
+
+    <!-- ═══ Glassmorphism Header ═══ -->
     <header id="header">
         <div class="header-inner">
-            <a href="#" class="logo" onclick="navigateTo('home')">
-                <span class="logo-icon">★</span> IMDb<span class="logo-accent">Clone</span>
+            <a class="logo" href="#home" title="Home">
+                <span class="logo-icon">✦</span>
+                <span>Cine<span class="logo-accent">Vault</span></span>
             </a>
+
             <div class="search-bar">
-                <input type="text" id="searchInput" placeholder="Search movies, TV shows, people..." autocomplete="off">
-                <button id="searchBtn" onclick="doSearch()">🔍</button>
+                <input type="text" id="searchInput" placeholder="Search movies, shows, people…" autocomplete="off">
+                <button onclick="document.getElementById('searchInput').dispatchEvent(new Event('input'))">🔍</button>
             </div>
+
             <div class="header-controls">
-                <button class="filter-toggle-btn" id="filterToggleBtn" onclick="toggleFilters()">
+                <button id="filterToggle" class="filter-toggle-btn">
                     <span>⚙</span> Filters
                 </button>
             </div>
         </div>
-        <div id="filterPanel" class="filter-panel collapsed">
+
+        <!-- ═══ Slide-in Filter Drawer ═══ -->
+        <div id="filterPanel" class="filter-panel">
             <div class="filter-panel-inner">
                 <div class="filter-group">
                     <label>Type</label>
@@ -45,39 +51,39 @@
                 </div>
                 <div class="filter-group">
                     <label>Year</label>
-                    <input type="number" id="filterYear" min="1900" max="2030" placeholder="Any">
+                    <input id="filterYear" type="number" placeholder="e.g. 2024" min="1900" max="2030">
                 </div>
                 <div class="filter-group">
                     <label>Min Rating</label>
-                    <input type="number" id="filterRating" min="0" max="10" step="0.5" placeholder="0">
+                    <input id="filterRating" type="number" placeholder="0-10" min="0" max="10" step="0.5">
                 </div>
                 <div class="filter-group">
                     <label>Sort By</label>
                     <select id="filterSort">
                         <option value="popularity">Popularity</option>
-                        <option value="rating">Rating</option>
-                        <option value="release_date">Release Date</option>
+                        <option value="vote_average">Rating</option>
+                        <option value="primary_release_date">Release Date</option>
+                        <option value="revenue">Revenue</option>
                     </select>
                 </div>
                 <div class="filter-actions">
-                    <button class="filter-apply-btn" onclick="applyFilters()">Apply</button>
-                    <button class="filter-clear-btn" onclick="clearFilters()">✕ Clear</button>
+                    <button id="filterApply" class="filter-apply-btn">Apply</button>
+                    <button class="filter-clear-btn"
+                        onclick="document.querySelectorAll('.filter-group select,.filter-group input').forEach(e=>e.value='');location.hash='home'">Clear</button>
                 </div>
             </div>
         </div>
     </header>
 
+    <!-- ═══ Main Content ═══ -->
     <main id="app">
-        <div id="loading" class="loading hidden">
-            <div class="spinner"></div>
-            <p>Loading...</p>
-        </div>
         <div id="content"></div>
     </main>
 
+    <!-- ═══ Footer ═══ -->
     <footer>
-        <p>IMDb Clone — Data powered by <a href="https://www.themoviedb.org/" target="_blank">TMDB</a> & <a
-                href="https://www.imdb.com/interfaces/" target="_blank">IMDb Datasets</a></p>
+        <p>CineVault — Powered by <a href="https://www.themoviedb.org/" target="_blank" rel="noopener">TMDB</a> · Built
+            with 🎬</p>
     </footer>
 
     <script src="/static/app.js"></script>

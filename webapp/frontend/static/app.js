@@ -1,447 +1,697 @@
 /* ════════════════════════════════════════════════════════════
-   IMDb Clone — Frontend v3.0  (TMDB-Powered)
-   Real posters, debounced search, pagination, cast grid,
-   watch providers, similar movies, skeleton loaders
+   CineVault — Cinematic Movie Discovery Platform
+   Frontend Application v4.0
+   Hero Banner · 3D TiltCards · Mood Discovery · TMDB Powered
    ════════════════════════════════════════════════════════════ */
+
 const API = "";
-const PLACEHOLDER = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 300 450'%3E%3Crect width='300' height='450' fill='%231a1a2e'/%3E%3Ctext x='150' y='225' text-anchor='middle' fill='%23555' font-size='16' font-family='sans-serif'%3ENo Poster%3C/text%3E%3C/svg%3E";
-const PROFILE_PH = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 185 278'%3E%3Crect width='185' height='278' fill='%231a1a2e'/%3E%3Ctext x='92' y='139' text-anchor='middle' fill='%23555' font-size='48'%3E👤%3C/text%3E%3C/svg%3E";
+const TMDB_IMG = "https://image.tmdb.org/t/p";
+const PLACEHOLDER = `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 450"><rect fill="#10101c" width="300" height="450"/><text x="150" y="225" text-anchor="middle" fill="#4a4a6a" font-family="sans-serif" font-size="16">No Poster</text></svg>')}`;
 
-// ── Utilities ──
-const $ = s => document.querySelector(s);
-const $$ = s => document.querySelectorAll(s);
-const show = el => el && el.classList.remove("hidden");
-const hide = el => el && el.classList.add("hidden");
-const showLoading = () => { show($("#loading")); hide($("#content")); };
-const hideLoading = () => { hide($("#loading")); show($("#content")); };
-
-async function api(path) {
-    const sep = path.includes("?") ? "&" : "?";
-    const res = await fetch(`${API}${path}`);
-    if (!res.ok) throw new Error(`API ${res.status}`);
-    return res.json();
-}
-
-function esc(s) {
+/* ── DOM helpers ── */
+const $ = (s) => document.querySelector(s);
+const $$ = (s) => [...document.querySelectorAll(s)];
+const esc = (s) => {
     if (!s) return "";
     const d = document.createElement("div");
     d.textContent = String(s);
     return d.innerHTML;
+};
+
+/* ── API helper ── */
+async function api(path) {
+    const r = await fetch(`${API}${path}`);
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    return r.json();
 }
 
-function debounce(fn, ms) {
-    let timer;
-    return (...args) => { clearTimeout(timer); timer = setTimeout(() => fn(...args), ms); };
+/* ── Poster URL helper ── */
+function poster(path, size = "w500") {
+    if (!path) return PLACEHOLDER;
+    if (path.startsWith("http")) return path;
+    return `${TMDB_IMG}/${size}${path}`;
 }
 
-function poster(url) { return url || PLACEHOLDER; }
-function profile(url) { return url || PROFILE_PH; }
-function fmtVotes(n) { return n ? Number(n).toLocaleString() : "0"; }
-
-function fmtType(t) {
-    return {
-        movie: "Movie", tv: "TV Series", tvSeries: "TV Series", tvMiniSeries: "Mini-Series",
-        person: "Person", short: "Short"
-    }[t] || t || "";
+function backdrop(path) {
+    if (!path) return null;
+    if (path.startsWith("http")) return path;
+    return `${TMDB_IMG}/w1280${path}`;
 }
 
-// ── Skeleton Loaders ──
-function skeletonCards(n = 10) {
-    return `<div class="card-grid">${Array(n).fill(`
-        <div class="skeleton-card"><div class="skeleton skeleton-poster"></div>
-        <div class="skeleton skeleton-text"></div><div class="skeleton skeleton-text short"></div></div>`).join("")}</div>`;
-}
-function skeletonDetail() {
-    return `<div class="title-hero"><div class="skeleton" style="width:260px;aspect-ratio:2/3;border-radius:14px"></div>
-    <div style="flex:1;display:flex;flex-direction:column;gap:12px"><div class="skeleton" style="height:32px;width:60%"></div>
-    <div class="skeleton" style="height:18px;width:40%"></div><div class="skeleton" style="height:14px;width:80%"></div></div></div>`;
-}
+/* ── Router ── */
+const content = () => $("#content");
 
-// ── Scroll Animation Observer ──
-const observer = new IntersectionObserver(entries => {
-    entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add("visible"); observer.unobserve(e.target); } });
-}, { threshold: 0.08 });
-function observeAnimations() { $$(".animate-in").forEach(el => observer.observe(el)); }
-
-// ── Navigation ──
 function navigateTo(page, params = {}) {
-    const qs = new URLSearchParams(params).toString();
-    window.location.hash = qs ? `${page}?${qs}` : page;
+    const q = new URLSearchParams(params).toString();
+    location.hash = q ? `${page}?${q}` : page;
 }
+
 function parseHash() {
-    const raw = window.location.hash.slice(1) || "home";
-    const [page, qs] = raw.split("?");
-    return { page, params: Object.fromEntries(new URLSearchParams(qs || "")) };
+    const h = location.hash.slice(1) || "home";
+    const [page, qs] = h.split("?");
+    const params = Object.fromEntries(new URLSearchParams(qs || ""));
+    return { page, params };
 }
+
 window.addEventListener("hashchange", route);
-window.addEventListener("load", () => { loadGenres(); route(); });
+window.addEventListener("DOMContentLoaded", () => {
+    initSearch();
+    initFilters();
+    route();
+});
 
 function route() {
-    const c = $("#content"); c.style.animation = "none"; c.offsetHeight; c.style.animation = "";
+    clearHeroInterval();
     const { page, params } = parseHash();
+    const c = content();
+    c.innerHTML = loadingHtml();
+    c.classList.remove("pageIn");
+    void c.offsetWidth;
+
     switch (page) {
         case "home": loadHome(); break;
-        case "title": loadTitle(params.id, params.type); break;
-        case "credits": loadCredits(params.id, params.type); break;
-        case "series": loadSeries(params.id, params.season); break;
-        case "person": loadPerson(params.id); break;
+        case "title": loadTitle(params); break;
+        case "person": loadPerson(params); break;
         case "search": loadSearch(params); break;
         case "discover": loadDiscover(params); break;
+        case "series": loadSeries(params); break;
+        case "credits": loadCredits(params); break;
         default: loadHome();
     }
 }
 
-// ── Filters ──
-function toggleFilters() {
-    const p = $("#filterPanel"); const b = $("#filterToggleBtn");
-    p.classList.toggle("expanded"); p.classList.toggle("collapsed"); b.classList.toggle("active");
-}
-function applyFilters() { navigateTo("discover", getFilterParams()); }
-function getFilterParams() {
-    return {
-        type: $("#filterType").value,
-        genre: $("#filterGenre").value,
-        year: $("#filterYear").value,
-        rating: $("#filterRating").value,
-        sort: $("#filterSort").value,
-        page: "1",
-    };
-}
-function clearFilters() {
-    $("#filterGenre").value = ""; $("#filterYear").value = "";
-    $("#filterRating").value = ""; $("#filterSort").value = "popularity";
-}
-
-async function loadGenres() {
-    try {
-        const d = await fetch(`${API}/api/genres`).then(r => r.json());
-        const sel = $("#filterGenre");
-        (d.genres || []).forEach(g => {
-            const o = document.createElement("option");
-            o.value = g.id || g.name || g; o.textContent = g.name || g;
-            sel.appendChild(o);
-        });
-    } catch (e) { }
-}
-
-// ── Search (debounced 300ms) ──
-const _doSearchDebounced = debounce(() => {
-    const q = $("#searchInput").value.trim();
-    if (q.length >= 2) navigateTo("search", { q, page: "1" });
-}, 300);
-function doSearch() {
-    const q = $("#searchInput").value.trim();
-    if (q.length >= 2) navigateTo("search", { q, page: "1" });
-}
-$("#searchInput").addEventListener("input", _doSearchDebounced);
-$("#searchInput").addEventListener("keydown", e => { if (e.key === "Enter") doSearch(); });
-
-// ══ PAGE RENDERERS ══════════════════════════════════════
-
-// ── Home ──
+/* ══════════════════════════════════════════════════════════
+   HOME PAGE — Hero Banner + Mood Discovery + Trending + Top Rated
+   ══════════════════════════════════════════════════════════ */
 async function loadHome() {
-    $("#content").innerHTML = `
-        <h2 class="section-title animate-in"><span class="icon">🔥</span> Trending This Week</h2>${skeletonCards(10)}
-        <h2 class="section-title animate-in"><span class="icon">★</span> Top Rated</h2>${skeletonCards(10)}`;
-    show($("#content")); hide($("#loading"));
     try {
-        const d = await api("/api/home");
-        $("#content").innerHTML = `
-            <h2 class="section-title animate-in"><span class="icon">🔥</span> Trending This Week</h2>
-            <div class="card-grid">${(d.trending || []).map((t, i) => cardHtml(t, i)).join("")}</div>
-            <h2 class="section-title animate-in"><span class="icon">★</span> Top Rated</h2>
-            <div class="card-grid">${(d.topRated || []).map((t, i) => cardHtml(t, i)).join("")}</div>`;
+        const data = await api("/api/home");
+        const trending = data.trending || [];
+        const topRated = data.topRated || [];
+        const heroMovies = trending.slice(0, 5).filter(m => m.backdrop || m.poster);
+
+        let html = "";
+
+        /* Hero Banner */
+        if (heroMovies.length) {
+            html += `<div class="hero">
+                ${heroMovies.map((m, i) => `
+                    <div class="hero-slide ${i === 0 ? 'active' : ''}"
+                         style="background-image:url('${backdrop(m.backdrop) || poster(m.poster)}')">
+                        <div class="hero-gradient"></div>
+                        <div class="hero-content">
+                            <div class="hero-tag">🔥 TRENDING NOW</div>
+                            <h1 class="hero-title">${esc(m.title)}</h1>
+                            <p class="hero-overview">${esc((m.overview || '').substring(0, 160))}</p>
+                            <div class="hero-meta">
+                                ${m.rating ? `<span class="hero-rating">★ ${Number(m.rating).toFixed(1)}</span>` : ''}
+                                ${m.year ? `<span>${m.year}</span>` : ''}
+                                ${m.genres?.length ? `<span>${m.genres.join(', ')}</span>` : ''}
+                            </div>
+                            <button class="hero-cta" onclick="navigateTo('title',{id:'${m.id}',type:'${m.media_type || 'movie'}'})">
+                                Explore <span class="arrow">→</span>
+                            </button>
+                        </div>
+                    </div>
+                `).join('')}
+                <div class="hero-dots">
+                    ${heroMovies.map((_, i) => `<span class="hero-dot ${i === 0 ? 'active' : ''}" onclick="setHeroSlide(${i})"></span>`).join('')}
+                </div>
+            </div>`;
+        }
+
+        /* Mood Discovery */
+        html += moodSectionHtml();
+
+        /* Trending Section */
+        if (trending.length) {
+            html += `<div class="section-title animate-in"><span class="icon">🔥</span> Trending This Week</div>`;
+            html += `<div class="card-grid animate-in">${trending.map(cardHtml).join('')}</div>`;
+        }
+
+        /* Top Rated Section */
+        if (topRated.length) {
+            html += `<div class="section-title animate-in"><span class="icon">⭐</span> Top Rated</div>`;
+            html += `<div class="card-grid animate-in">${topRated.map(cardHtml).join('')}</div>`;
+        }
+
+        content().innerHTML = html;
+        startHeroRotation();
         observeAnimations();
-    } catch (e) { $("#content").innerHTML = errorHtml("Failed to load", e.message); }
+        initTilt();
+    } catch (e) {
+        content().innerHTML = errorHtml(e.message);
+    }
 }
 
-function cardHtml(t, idx = 0) {
-    const delay = Math.min(idx * 40, 400);
-    const mt = t.media_type || "movie";
-    const id = t.id || t.tconst;
-    const title = t.title || t.primary_title || "";
-    const yr = t.year || t.start_year || "";
-    const rt = t.runtime || t.runtime_minutes || "";
-    const rating = t.rating || t.average_rating || "";
-    const p = poster(t.poster || t.poster_url);
-    const genreStr = Array.isArray(t.genres) ? t.genres.join(", ") : (t.genres || "");
+/* ── Hero Auto-Rotate ── */
+let heroInterval = null;
+function clearHeroInterval() { if (heroInterval) { clearInterval(heroInterval); heroInterval = null; } }
+
+function startHeroRotation() {
+    const slides = $$('.hero-slide');
+    const dots = $$('.hero-dot');
+    if (slides.length < 2) return;
+    let current = 0;
+    clearHeroInterval();
+    heroInterval = setInterval(() => {
+        slides[current]?.classList.remove('active');
+        dots[current]?.classList.remove('active');
+        current = (current + 1) % slides.length;
+        slides[current]?.classList.add('active');
+        dots[current]?.classList.add('active');
+    }, 7000);
+}
+
+window.setHeroSlide = function (i) {
+    const slides = $$('.hero-slide');
+    const dots = $$('.hero-dot');
+    slides.forEach((s, idx) => { s.classList.toggle('active', idx === i); });
+    dots.forEach((d, idx) => { d.classList.toggle('active', idx === i); });
+    clearHeroInterval();
+    startHeroRotation();
+};
+
+/* ── Mood Discovery Section ── */
+function moodSectionHtml() {
+    const moods = [
+        { id: 28, emoji: '💥', label: 'Action', color: '#ff4444' },
+        { id: 35, emoji: '😂', label: 'Comedy', color: '#ffaa00' },
+        { id: 18, emoji: '🎭', label: 'Drama', color: '#a855f7' },
+        { id: 27, emoji: '👻', label: 'Horror', color: '#00ff88' },
+        { id: 10749, emoji: '❤️', label: 'Romance', color: '#f472b6' },
+        { id: 878, emoji: '🚀', label: 'Sci-Fi', color: '#00d4ff' },
+        { id: 53, emoji: '🔪', label: 'Thriller', color: '#ff6600' },
+        { id: 16, emoji: '✨', label: 'Animation', color: '#88ff44' },
+        { id: 14, emoji: '🧙', label: 'Fantasy', color: '#cc44ff' },
+        { id: 12, emoji: '🗺️', label: 'Adventure', color: '#44ccff' },
+    ];
     return `
-    <div class="card animate-in" style="transition-delay:${delay}ms"
-         onclick="navigateTo('title',{id:'${id}',type:'${mt}'})">
+        <div class="mood-section animate-in">
+            <div class="section-title"><span class="icon">🎭</span> What's Your Mood?</div>
+            <div class="mood-grid">
+                ${moods.map(m => `
+                    <div class="mood-bubble" style="--glow:${m.color}"
+                         onclick="navigateTo('discover',{type:'movie',genre:'${m.id}',sort:'popularity',page:'1'})">
+                        <span class="mood-emoji">${m.emoji}</span>
+                        <span class="mood-label">${m.label}</span>
+                    </div>
+                `).join('')}
+            </div>
+        </div>`;
+}
+
+/* ══════════════════════════════════════════════════════════
+   MOVIE CARD
+   ══════════════════════════════════════════════════════════ */
+function cardHtml(m) {
+    const imgSrc = poster(m.poster || m.poster_path);
+    const type = m.media_type || 'movie';
+    const title = m.title || m.name || 'Untitled';
+    const rating = m.rating || m.vote_average;
+    const yr = m.year || (m.release_date || m.first_air_date || '').substring(0, 4);
+
+    return `<div class="card" onclick="navigateTo('title',{id:'${m.id}',type:'${type}'})">
         <div class="card-poster-wrap">
-            <img class="card-poster" src="${p}" alt="${esc(title)}" loading="lazy" onerror="this.src='${PLACEHOLDER}'">
-            ${rating ? `<div class="card-rating-overlay"><span class="star">★</span> ${Number(rating).toFixed(1)}</div>` : ""}
-            <div class="card-type-overlay">${fmtType(mt)}</div>
+            <img class="card-poster" src="${imgSrc}" alt="${esc(title)}" loading="lazy"
+                 onerror="this.src='${PLACEHOLDER}'">
+            ${rating ? `<div class="card-rating-overlay"><span class="star">★</span> ${Number(rating).toFixed(1)}</div>` : ''}
+            ${type !== 'movie' ? `<div class="card-type-overlay">${esc(type)}</div>` : ''}
         </div>
         <div class="card-body">
             <div class="card-title">${esc(title)}</div>
-            <div class="card-meta">${yr ? `<span>${yr}</span>` : ""}${rt ? `<span>${rt} min</span>` : ""}</div>
-            ${genreStr ? `<div class="card-genres">${esc(genreStr)}</div>` : ""}
+            <div class="card-meta">
+                ${yr ? `<span>${yr}</span>` : ''}
+            </div>
         </div>
     </div>`;
 }
 
-// ── Title Detail ──
-async function loadTitle(id, type) {
-    if (!id) return loadHome();
-    $("#content").innerHTML = skeletonDetail(); show($("#content")); hide($("#loading"));
+/* ══════════════════════════════════════════════════════════
+   SEARCH
+   ══════════════════════════════════════════════════════════ */
+let searchTimer = null;
+function initSearch() {
+    const input = $("#searchInput");
+    if (!input) return;
+    input.addEventListener("input", () => {
+        clearTimeout(searchTimer);
+        const q = input.value.trim();
+        if (q.length < 2) return;
+        searchTimer = setTimeout(() => {
+            navigateTo("search", { q, page: 1 });
+        }, 350);
+    });
+    input.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+            clearTimeout(searchTimer);
+            const q = input.value.trim();
+            if (q) navigateTo("search", { q, page: 1 });
+        }
+    });
+}
+
+async function loadSearch(p) {
     try {
-        const t = await api(`/api/title/${id}?type=${type || "movie"}`);
-        const p = poster(t.poster || t.poster_url);
-        const bd = t.backdrop;
-        const title = t.title || t.primary_title || "";
-        const yr = t.year || t.start_year || "";
-        const rating = t.rating || t.average_rating;
-        const votes = t.votes || t.num_votes || 0;
-        const genres = Array.isArray(t.genres) ? t.genres : (t.genres || "").split(",").map(s => s.trim()).filter(Boolean);
+        const q = p.q || "";
+        const page = parseInt(p.page) || 1;
+        const data = await api(`/api/search?q=${encodeURIComponent(q)}&page=${page}`);
+        const results = data.results || [];
 
-        const backdropHtml = bd ? `<div class="title-backdrop"><img src="${bd}" alt="" loading="lazy"><div class="backdrop-gradient"></div></div>` : "";
+        let html = `<div class="search-results-info">
+            Results for <strong>"${esc(q)}"</strong>
+            ${data.totalResults ? `— ${data.totalResults} found` : ''}
+        </div>`;
 
-        const genresHtml = genres.map(g => `<span class="genre-tag">${esc(g)}</span>`).join("");
+        if (!results.length) {
+            html += emptyHtml("🔍", "No results found. Try another query.");
+        } else {
+            html += `<div class="card-grid animate-in">${results.map(r => {
+                if (r.media_type === 'person') return personCardHtml(r);
+                return cardHtml(r);
+            }).join('')}</div>`;
+            html += paginationHtml(page, data.totalPages || 1, (pg) =>
+                `navigateTo('search',{q:'${esc(q)}',page:'${pg}'})`
+            );
+        }
+        content().innerHTML = html;
+        observeAnimations();
+        initTilt();
+    } catch (e) { content().innerHTML = errorHtml(e.message); }
+}
 
-        const directorsHtml = (t.directors || []).map(d =>
-            `<span class="person-name" onclick="navigateTo('person',{id:'${d.id || d.nconst}'})">${esc(d.name || d.primary_name)}</span>`).join(", ");
+function personCardHtml(p) {
+    const imgSrc = poster(p.profile || p.profile_path, "w185");
+    return `<div class="card" onclick="navigateTo('person',{id:'${p.id}'})">
+        <div class="card-poster-wrap">
+            <img class="card-poster" src="${imgSrc}" alt="${esc(p.name)}" loading="lazy"
+                 onerror="this.src='${PLACEHOLDER}'">
+            <div class="card-type-overlay">person</div>
+        </div>
+        <div class="card-body">
+            <div class="card-title">${esc(p.name)}</div>
+            <div class="card-meta"><span>${esc(p.known_for_department || '')}</span></div>
+        </div>
+    </div>`;
+}
 
-        const castHtml = (t.cast || []).map(c => `
-            <div class="cast-card animate-in" onclick="navigateTo('person',{id:'${c.id || c.nconst}'})">
-                <img class="cast-photo" src="${profile(c.profile)}" alt="${esc(c.name || c.primary_name)}" loading="lazy" onerror="this.src='${PROFILE_PH}'">
-                <div class="cast-name">${esc(c.name || c.primary_name)}</div>
-                <div class="cast-character">${esc(c.character || c.characters || "")}</div>
-            </div>`).join("");
+/* ══════════════════════════════════════════════════════════
+   FILTERS + DISCOVER
+   ══════════════════════════════════════════════════════════ */
+function initFilters() {
+    const toggle = $("#filterToggle");
+    const panel = $("#filterPanel");
+    const applyBtn = $("#filterApply");
+    if (!toggle || !panel) return;
 
-        const providersHtml = (t.providers || []).length ? `
-            <div class="providers-section">
-                <h3>📡 Where to Watch</h3>
+    toggle.addEventListener("click", () => {
+        panel.classList.toggle("expanded");
+        toggle.classList.toggle("active");
+    });
+
+    if (applyBtn) {
+        applyBtn.addEventListener("click", () => {
+            const type = $("#filterType")?.value || "movie";
+            const genre = $("#filterGenre")?.value || "";
+            const year = $("#filterYear")?.value || "";
+            const rating = $("#filterRating")?.value || "";
+            const sort = $("#filterSort")?.value || "popularity";
+            navigateTo("discover", { type, genre, year, rating, sort, page: 1 });
+        });
+    }
+
+    /* Load genres into select */
+    api("/api/genres").then(data => {
+        const sel = $("#filterGenre");
+        if (!sel) return;
+        (data.genres || []).forEach(g => {
+            const o = document.createElement("option");
+            o.value = g.id || g.name;
+            o.textContent = g.name;
+            sel.appendChild(o);
+        });
+    }).catch(() => { });
+}
+
+async function loadDiscover(p) {
+    try {
+        const page = parseInt(p.page) || 1;
+        const qs = new URLSearchParams({
+            type: p.type || 'movie', genre: p.genre || '',
+            year: p.year || '', rating: p.rating || '', sort: p.sort || 'popularity', page
+        });
+        const data = await api(`/api/discover?${qs}`);
+        const results = data.results || [];
+
+        let html = `<div class="search-results-info">
+            Discovering <strong>${esc(p.type || 'movies')}</strong>
+            ${data.totalResults ? `— ${data.totalResults} results` : ''}
+        </div>`;
+
+        if (!results.length) {
+            html += emptyHtml("🎬", "No movies found with these filters.");
+        } else {
+            html += `<div class="card-grid animate-in">${results.map(cardHtml).join('')}</div>`;
+            html += paginationHtml(page, data.totalPages || 1, (pg) => {
+                const np = { ...p, page: pg };
+                return `navigateTo('discover',${JSON.stringify(np)})`;
+            });
+        }
+        content().innerHTML = html;
+        observeAnimations();
+        initTilt();
+    } catch (e) { content().innerHTML = errorHtml(e.message); }
+}
+
+/* ══════════════════════════════════════════════════════════
+   TITLE DETAIL PAGE
+   ══════════════════════════════════════════════════════════ */
+async function loadTitle(p) {
+    try {
+        const qs = p.type ? `?type=${p.type}` : '';
+        const data = await api(`/api/title/${p.id}${qs}`);
+        const d = data;
+
+        let html = '';
+
+        /* Backdrop */
+        if (d.backdrop) {
+            html += `<div class="title-backdrop">
+                <img src="${backdrop(d.backdrop)}" alt="" loading="lazy">
+                <div class="backdrop-gradient"></div>
+            </div>`;
+        }
+
+        html += `<div class="title-detail">`;
+
+        /* Back button */
+        html += `<button class="back-btn" onclick="history.back()">← Back</button>`;
+
+        /* Hero row: Poster + Info */
+        html += `<div class="title-hero">
+            <div class="title-poster-wrap">
+                <img class="title-poster" src="${poster(d.poster || d.poster_url)}" alt="${esc(d.title)}"
+                     loading="lazy" onerror="this.src='${PLACEHOLDER}'">
+            </div>
+            <div class="title-info">
+                <h1>${esc(d.title || d.primary_title)}</h1>
+                ${d.tagline ? `<div class="tagline">"${esc(d.tagline)}"</div>` : ''}
+                <div class="meta-row">
+                    ${d.media_type ? `<span class="meta-tag">${esc(d.media_type)}</span>` : ''}
+                    ${d.year || d.start_year ? `<span>${d.year || d.start_year}</span>` : ''}
+                    ${d.runtime ? `<span>${d.runtime} min</span>` : ''}
+                </div>
+                ${d.rating ? `<div class="rating-badge">
+                    <span class="star">★</span> ${Number(d.rating).toFixed(1)}
+                    ${d.votes ? `<span class="votes">(${Number(d.votes).toLocaleString()} votes)</span>` : ''}
+                </div>` : ''}
+                <div class="genre-tags">
+                    ${(d.genres || []).map(g => `<span class="genre-tag">${esc(typeof g === 'string' ? g : g.name)}</span>`).join('')}
+                </div>
+                ${d.overview ? `<p class="overview">${esc(d.overview)}</p>` : ''}
+                ${d.director ? `<div class="crew-line"><strong>Director:</strong> ${esc(d.director)}</div>` : ''}
+                ${d.writers ? `<div class="crew-line"><strong>Writer:</strong> ${esc(d.writers)}</div>` : ''}
+                <div class="title-actions">
+                    ${d.media_type === 'tv' || d.title_type === 'tvSeries' ?
+                `<button class="action-btn" onclick="navigateTo('series',{id:'${d.id}',type:'tv'})">📺 Episodes</button>` : ''}
+                    <button class="action-btn" onclick="navigateTo('credits',{id:'${d.id}',type:'${d.media_type || 'movie'}'})">👥 Full Cast</button>
+                </div>
+            </div>
+        </div>`;
+
+        /* Watch Providers */
+        if (d.providers?.length) {
+            html += `<div class="providers-section">
+                <h3>📺 Where to Watch</h3>
                 <div class="providers-list">
-                    ${t.providers.map(p => `<div class="provider-badge"><img src="${p.logo}" alt="${esc(p.name)}" title="${esc(p.name)}"></div>`).join("")}
+                    ${d.providers.map(pv => `<div class="provider-badge" title="${esc(pv.provider_name)}">
+                        <img src="${poster(pv.logo_path, 'w92')}" alt="${esc(pv.provider_name)}" loading="lazy">
+                    </div>`).join('')}
                 </div>
-            </div>` : "";
-
-        const similarHtml = (t.similar || []).length ? `
-            <div class="similar-section animate-in">
-                <h2 class="section-title"><span class="icon">🎬</span> Similar Titles</h2>
-                <div class="card-grid">${t.similar.map((s, i) => cardHtml(s, i)).join("")}</div>
-            </div>` : "";
-
-        const isTV = type === "tv" || t.media_type === "tv" || t.media_type === "tvSeries";
-        const seriesBtn = isTV && t.number_of_seasons ? `<button class="action-btn" onclick="navigateTo('series',{id:'${id}'})">📺 ${t.number_of_seasons} Seasons</button>` : "";
-
-        $("#content").innerHTML = `
-            ${backdropHtml}
-            <button class="back-btn" onclick="history.back()">← Back</button>
-            <div class="title-detail animate-in">
-                <div class="title-hero">
-                    <div class="title-poster-wrap">
-                        <img class="title-poster" src="${p}" alt="${esc(title)}" onerror="this.src='${PLACEHOLDER}'">
-                    </div>
-                    <div class="title-info">
-                        <h1>${esc(title)}</h1>
-                        ${t.tagline ? `<p class="tagline">${esc(t.tagline)}</p>` : ""}
-                        <div class="meta-row">
-                            <span class="meta-tag">${fmtType(t.media_type || type)}</span>
-                            ${yr ? `<span>${yr}</span>` : ""}
-                            ${t.runtime ? `<span>${t.runtime} min</span>` : ""}
-                        </div>
-                        ${rating ? `<div class="rating-badge"><span class="star">★</span> ${Number(rating).toFixed(1)} <span class="votes">(${fmtVotes(votes)} votes)</span></div>` : ""}
-                        <div class="genre-tags">${genresHtml}</div>
-                        ${t.overview ? `<p class="overview">${esc(t.overview)}</p>` : ""}
-                        ${directorsHtml ? `<div class="crew-line"><strong>Director:</strong> ${directorsHtml}</div>` : ""}
-                        ${providersHtml}
-                        <div class="title-actions">
-                            <button class="action-btn" onclick="navigateTo('credits',{id:'${id}',type:'${type || "movie"}'})">👥 Full Cast & Crew</button>
-                            ${seriesBtn}
-                        </div>
-                    </div>
-                </div>
-                ${castHtml ? `<div class="cast-section animate-in"><h2 class="section-title"><span class="icon">👥</span> Top Cast</h2><div class="cast-grid">${castHtml}</div></div>` : ""}
-                ${similarHtml}
             </div>`;
+        }
+
+        /* Cast Grid */
+        if (d.cast?.length) {
+            html += `<div class="cast-section">
+                <div class="section-title"><span class="icon">🎭</span> Cast</div>
+                <div class="cast-grid">
+                    ${d.cast.slice(0, 12).map(c => {
+                const cImg = poster(c.profile || c.profile_path, "w185");
+                const cId = c.id || c.nconst;
+                const char = c.character || (c.characters ? JSON.parse(c.characters)[0] : '');
+                return `<div class="cast-card" onclick="navigateTo('person',{id:'${cId}'})">
+                            <img class="cast-photo" src="${cImg}" alt="${esc(c.name || c.primary_name)}"
+                                 loading="lazy" onerror="this.src='${PLACEHOLDER}'">
+                            <div class="cast-name">${esc(c.name || c.primary_name)}</div>
+                            <div class="cast-character">${esc(char)}</div>
+                        </div>`;
+            }).join('')}
+                </div>
+            </div>`;
+        }
+
+        /* Similar Movies */
+        if (d.similar?.length) {
+            html += `<div class="similar-section">
+                <div class="section-title"><span class="icon">🎬</span> Similar</div>
+                <div class="card-grid">${d.similar.map(cardHtml).join('')}</div>
+            </div>`;
+        }
+
+        html += `</div>`;
+        content().innerHTML = html;
         observeAnimations();
-    } catch (e) { $("#content").innerHTML = errorHtml("Title not found", e.message); }
+        initTilt();
+    } catch (e) { content().innerHTML = errorHtml(e.message); }
 }
 
-// ── Full Credits ──
-async function loadCredits(id, type) {
-    if (!id) return loadHome();
-    showLoading();
+/* ══════════════════════════════════════════════════════════
+   PERSON PAGE
+   ══════════════════════════════════════════════════════════ */
+async function loadPerson(p) {
     try {
-        const d = await api(`/api/title/${id}/full-credits?type=${type || "movie"}`);
-        const title = d.title || d.primary_title || "";
-        let html = `<button class="back-btn" onclick="navigateTo('title',{id:'${id}',type:'${type || "movie"}'})">← Back to ${esc(title)}</button>
-            <h2 class="section-title">Full Cast & Crew — ${esc(title)}</h2>`;
+        const data = await api(`/api/person/${p.id}`);
+        const d = data;
 
-        if (d.source === "tmdb") {
-            if (d.cast && d.cast.length) {
-                html += `<div class="credits-group animate-in"><h3>Cast (${d.cast.length})</h3>
-                    <div class="cast-grid">${d.cast.map(c => `
-                        <div class="cast-card" onclick="navigateTo('person',{id:'${c.id}'})">
-                            <img class="cast-photo" src="${profile(c.profile)}" alt="" loading="lazy" onerror="this.src='${PROFILE_PH}'">
-                            <div class="cast-name">${esc(c.name)}</div>
-                            <div class="cast-character">${esc(c.character)}</div>
-                        </div>`).join("")}</div></div>`;
+        let html = `<div class="person-detail">
+            <button class="back-btn" onclick="history.back()">← Back</button>
+            <div class="person-header">
+                <div class="person-header-inner">
+                    ${d.profile ? `<img class="person-profile-img" src="${poster(d.profile, 'w300')}"
+                        alt="${esc(d.name)}" loading="lazy" onerror="this.src='${PLACEHOLDER}'">` : ''}
+                    <div>
+                        <h1>${esc(d.name || d.primary_name)}</h1>
+                        <div class="person-meta">
+                            ${d.known_for_department ? `<span>🎬 ${esc(d.known_for_department)}</span>` : ''}
+                            ${d.birthday ? `<span>🎂 ${esc(d.birthday)}</span>` : ''}
+                            ${d.birth_year ? `<span>Born ${d.birth_year}</span>` : ''}
+                            ${d.place_of_birth ? `<span>📍 ${esc(d.place_of_birth)}</span>` : ''}
+                        </div>
+                        ${d.biography ? `<p class="person-bio">${esc(d.biography)}</p>` : ''}
+                    </div>
+                </div>
+            </div>`;
+
+        /* Filmography */
+        const filmography = d.filmography || d.credits || [];
+        if (filmography.length) {
+            /* group by category */
+            const groups = {};
+            filmography.forEach(f => {
+                const cat = f.category || f.department || 'Other';
+                if (!groups[cat]) groups[cat] = [];
+                groups[cat].push(f);
+            });
+            for (const [cat, items] of Object.entries(groups)) {
+                html += `<div class="filmography-group animate-in">
+                    <h3>${esc(cat)}</h3>
+                    ${items.slice(0, 20).map(f => {
+                    const yr = f.year || (f.release_date || f.first_air_date || '').substring(0, 4);
+                    const fId = f.id || f.tconst;
+                    const fTitle = f.title || f.primary_title || f.name || '';
+                    return `<div class="filmography-item">
+                            <span class="filmography-year">${yr || '—'}</span>
+                            <span class="filmography-title" onclick="navigateTo('title',{id:'${fId}',type:'${f.media_type || 'movie'}'})">${esc(fTitle)}</span>
+                            ${f.vote_average ? `<span class="filmography-rating">★ ${Number(f.vote_average).toFixed(1)}</span>` : ''}
+                        </div>`;
+                }).join('')}
+                </div>`;
             }
-            Object.entries(d.crew || {}).forEach(([dept, members]) => {
-                html += `<div class="credits-group animate-in"><h3>${esc(dept)} (${members.length})</h3>
-                    ${members.map(m => `<div class="person-row"><span class="person-name" onclick="navigateTo('person',{id:'${m.id}'})">${esc(m.name)}</span><span class="person-role">${esc(m.job)}</span></div>`).join("")}</div>`;
-            });
-        } else {
-            Object.entries(d.credits || {}).forEach(([cat, people]) => {
-                html += `<div class="credits-group animate-in"><h3>${esc(cat)} (${people.length})</h3>
-                    ${people.map(p => `<div class="person-row"><span class="person-name" onclick="navigateTo('person',{id:'${p.id || p.nconst}'})">${esc(p.name || p.primary_name)}</span><span class="person-role">${esc(p.character || p.characters || p.job || "")}</span></div>`).join("")}</div>`;
-            });
         }
-        $("#content").innerHTML = html; observeAnimations();
-    } catch (e) { $("#content").innerHTML = errorHtml("Credits not found", e.message); }
-    hideLoading();
-}
 
-// ── Series/Episodes ──
-async function loadSeries(id, season) {
-    if (!id) return loadHome();
-    showLoading();
-    try {
-        const sData = await api(`/api/series/${id}/seasons`);
-        season = season ? parseInt(season) : (sData.seasons[0] || 1);
-        const eData = await api(`/api/series/${id}/episodes?season=${season}`);
-        const title = sData.primary_title || "Series";
-        const seasonBtns = sData.seasons.map(s =>
-            `<button class="season-btn ${s === season ? "active" : ""}" onclick="navigateTo('series',{id:'${id}',season:${s}})">${s}</button>`).join("");
-        const epHtml = (eData.episodes || []).map((ep, i) => `
-            <div class="episode-card animate-in" style="transition-delay:${i * 50}ms" onclick="navigateTo('title',{id:'${ep.tconst || ep.id}'})">
-                <div class="episode-num">${ep.episode_number || "?"}</div>
-                <div class="episode-info"><div class="ep-title">${esc(ep.primary_title || ep.name || "")}</div>
-                <div class="ep-meta">${ep.start_year || ep.air_date || ""} ${ep.runtime_minutes || ep.runtime ? "· " + (ep.runtime_minutes || ep.runtime) + " min" : ""}</div></div>
-                <div class="episode-rating">${ep.average_rating || ep.vote_average ? `<span class="star">★</span> ${ep.average_rating || ep.vote_average}` : "—"}</div>
-            </div>`).join("") || '<div class="empty-state"><p>No episodes found.</p></div>';
-        $("#content").innerHTML = `
-            <button class="back-btn" onclick="navigateTo('title',{id:'${id}',type:'tv'})">← Back to ${esc(title)}</button>
-            <h2 class="section-title">${esc(title)} — Episodes</h2>
-            <div class="season-selector"><strong style="padding:6px 0;color:var(--text-secondary)">Season:</strong>${seasonBtns}</div>
-            <div class="episode-list">${epHtml}</div>`;
+        html += `</div>`;
+        content().innerHTML = html;
         observeAnimations();
-    } catch (e) { $("#content").innerHTML = errorHtml("Episodes not found", e.message); }
-    hideLoading();
+    } catch (e) { content().innerHTML = errorHtml(e.message); }
 }
 
-// ── Person ──
-async function loadPerson(id) {
-    if (!id) return loadHome();
-    showLoading();
+/* ══════════════════════════════════════════════════════════
+   SERIES / EPISODES
+   ══════════════════════════════════════════════════════════ */
+async function loadSeries(p) {
     try {
-        const p = await api(`/api/person/${id}`);
-        const name = p.name || p.primary_name || "";
-        const profileImg = p.profile ? `<img class="person-profile-img" src="${p.profile}" alt="${esc(name)}">` : "";
+        const data = await api(`/api/series/${p.id}/seasons`);
+        const seasons = data.seasons || [];
 
-        let bioHtml = "";
-        if (p.biography) bioHtml = `<p class="person-bio">${esc(p.biography).substring(0, 600)}${p.biography.length > 600 ? "…" : ""}</p>`;
-        let metaHtml = "";
-        if (p.birthday) metaHtml += `<span>Born: ${p.birthday}</span>`;
-        if (p.deathday) metaHtml += `<span>Died: ${p.deathday}</span>`;
-        if (p.place_of_birth) metaHtml += `<span>${esc(p.place_of_birth)}</span>`;
-        if (p.birth_year) metaHtml += `<span>Born: ${p.birth_year}</span>`;
-        if (p.death_year) metaHtml += `<span>Died: ${p.death_year}</span>`;
+        let html = `<button class="back-btn" onclick="history.back()">← Back</button>`;
+        html += `<h1 style="margin-bottom:20px">Episodes</h1>`;
 
-        let filmoHtml = "";
-        if (p.source === "tmdb" && Array.isArray(p.filmography)) {
-            filmoHtml = `<div class="card-grid">${p.filmography.slice(0, 20).map((f, i) => `
-                <div class="card animate-in" style="transition-delay:${i * 30}ms" onclick="navigateTo('title',{id:'${f.id}',type:'${f.media_type || "movie"}'})">
-                    <div class="card-poster-wrap"><img class="card-poster" src="${poster(f.poster)}" alt="" loading="lazy" onerror="this.src='${PLACEHOLDER}'">
-                    ${f.rating ? `<div class="card-rating-overlay"><span class="star">★</span> ${Number(f.rating).toFixed(1)}</div>` : ""}</div>
-                    <div class="card-body"><div class="card-title">${esc(f.title)}</div>
-                    <div class="card-meta">${f.year ? `<span>${f.year}</span>` : ""}</div>
-                    <div class="card-genres">${esc(f.character)}</div></div></div>`).join("")}</div>`;
-        } else if (p.filmography && typeof p.filmography === "object") {
-            filmoHtml = Object.entries(p.filmography).map(([cat, titles]) => `
-                <div class="filmography-group animate-in"><h3>${esc(cat)} (${titles.length})</h3>
-                ${titles.map(t => `<div class="filmography-item">
-                    <span class="filmography-year">${t.year || t.start_year || ""}</span>
-                    <span class="filmography-title" onclick="navigateTo('title',{id:'${t.id || t.tconst}'})">${esc(t.title || t.primary_title)}</span>
-                    <span class="filmography-rating">${t.rating || t.average_rating ? `★ ${t.rating || t.average_rating}` : ""}</span>
-                </div>`).join("")}</div>`).join("");
-        }
-
-        $("#content").innerHTML = `
-            <button class="back-btn" onclick="history.back()">← Back</button>
-            <div class="person-detail">
-                <div class="person-header animate-in">
-                    <div class="person-header-inner">
-                        ${profileImg}
-                        <div>
-                            <h1>${esc(name)}</h1>
-                            ${p.known_for_department ? `<span class="meta-tag">${esc(p.known_for_department)}</span>` : ""}
-                            <div class="person-meta">${metaHtml}</div>
-                            ${bioHtml}
-                        </div>
-                    </div>
-                </div>
-                <h2 class="section-title animate-in"><span class="icon">🎬</span> Filmography</h2>
-                ${filmoHtml || '<div class="empty-state"><p>No filmography data.</p></div>'}
+        if (!seasons.length) {
+            html += emptyHtml("📺", "No season data available.");
+        } else {
+            html += `<div class="season-selector">
+                ${seasons.map(s => `<button class="season-btn"
+                    onclick="loadEpisodes('${p.id}', ${s.season_number || s})">${typeof s === 'object' ? `S${s.season_number}` : `S${s}`}</button>`).join('')}
             </div>`;
-        observeAnimations();
-    } catch (e) { $("#content").innerHTML = errorHtml("Person not found", e.message); }
-    hideLoading();
-}
-
-// ── Search Results (with pagination) ──
-async function loadSearch(params) {
-    const q = params.q; const page = parseInt(params.page) || 1;
-    if (!q) return loadHome();
-    $("#content").innerHTML = `<div class="search-results-info">Searching for "<strong>${esc(q)}</strong>"...</div>${skeletonCards(8)}`;
-    show($("#content")); hide($("#loading"));
-    try {
-        const d = await api(`/api/search?q=${encodeURIComponent(q)}&page=${page}`);
-        let resultsHtml = "";
-        if (!d.results.length) {
-            resultsHtml = '<div class="empty-state"><div class="icon">🔍</div><p>No results found.</p></div>';
-        } else {
-            const movies = d.results.filter(r => r.media_type !== "person");
-            const people = d.results.filter(r => r.media_type === "person");
-            if (movies.length) resultsHtml += `<div class="card-grid">${movies.map((t, i) => cardHtml(t, i)).join("")}</div>`;
-            if (people.length) resultsHtml += `<h3 class="section-title animate-in" style="margin-top:32px"><span class="icon">👤</span> People</h3>` +
-                people.map(p => `<div class="person-row animate-in" style="padding:12px 0;cursor:pointer" onclick="navigateTo('person',{id:'${p.id}'})">
-                    <img src="${profile(p.profile)}" style="width:40px;height:40px;border-radius:50%;object-fit:cover" onerror="this.src='${PROFILE_PH}'">
-                    <span class="person-name">${esc(p.name)}</span>
-                    <span class="person-role">${esc(p.known_for_department || "")}</span></div>`).join("");
+            html += `<div id="episodeList"></div>`;
         }
-        $("#content").innerHTML = `
-            <div class="search-results-info">Results for "<strong>${esc(q)}</strong>" — ${d.totalResults || d.results.length} found</div>
-            ${resultsHtml}
-            ${paginationHtml(page, d.totalPages || 1, p => navigateTo('search', { q, page: p }))}`;
-        observeAnimations();
-    } catch (e) { $("#content").innerHTML = errorHtml("Search failed", e.message); }
+        content().innerHTML = html;
+        if (seasons.length) {
+            const firstSeason = typeof seasons[0] === 'object' ? seasons[0].season_number : seasons[0];
+            loadEpisodes(p.id, firstSeason);
+        }
+    } catch (e) { content().innerHTML = errorHtml(e.message); }
 }
 
-// ── Discover (filtered browse) ──
-async function loadDiscover(params) {
-    const page = parseInt(params.page) || 1;
-    $("#content").innerHTML = `<h2 class="section-title">Discover</h2>${skeletonCards(10)}`;
-    show($("#content")); hide($("#loading"));
+async function loadEpisodes(seriesId, seasonNum) {
+    const list = document.getElementById("episodeList");
+    if (!list) return;
+    list.innerHTML = loadingHtml();
+
+    $$('.season-btn').forEach((b, i) => b.classList.toggle('active', parseInt(b.textContent.replace('S', '')) === seasonNum));
+
     try {
-        const qs = new URLSearchParams(params).toString();
-        const d = await api(`/api/discover?${qs}`);
-        const resultsHtml = d.results.length
-            ? `<div class="card-grid">${d.results.map((t, i) => cardHtml(t, i)).join("")}</div>`
-            : '<div class="empty-state"><div class="icon">🎬</div><p>No titles match your filters.</p></div>';
-        $("#content").innerHTML = `
-            <h2 class="section-title animate-in"><span class="icon">🎯</span> Discover</h2>
-            ${resultsHtml}
-            ${paginationHtml(page, d.totalPages || 1, p => { params.page = p; navigateTo('discover', params); })}`;
-        observeAnimations();
-    } catch (e) { $("#content").innerHTML = errorHtml("Discover failed", e.message); }
+        const data = await api(`/api/series/${seriesId}/season/${seasonNum}`);
+        const eps = data.episodes || [];
+        if (!eps.length) { list.innerHTML = emptyHtml("📺", "No episodes found."); return; }
+
+        list.innerHTML = eps.map(ep => `
+            <div class="episode-card">
+                <div class="episode-num">${ep.episode_number || ep.ep_num || '?'}</div>
+                <div class="episode-info">
+                    <div class="ep-title">${esc(ep.name || ep.primary_title || `Episode ${ep.episode_number}`)}</div>
+                    <div class="ep-meta">${esc(ep.air_date || '')} ${ep.runtime ? `• ${ep.runtime}m` : ''}</div>
+                </div>
+                ${ep.vote_average ? `<div class="episode-rating">★ ${Number(ep.vote_average).toFixed(1)}</div>` : ''}
+            </div>
+        `).join('');
+    } catch (e) { list.innerHTML = errorHtml(e.message); }
 }
 
-// ── Pagination ──
-function paginationHtml(current, total, onPage) {
-    if (total <= 1) return "";
-    window._paginate = onPage;
-    let html = `<div class="pagination">`;
-    if (current > 1) html += `<button class="page-btn" onclick="window._paginate(${current - 1})">← Prev</button>`;
-    html += `<span class="page-info">Page ${current} of ${total}</span>`;
-    if (current < total) html += `<button class="page-btn" onclick="window._paginate(${current + 1})">Next →</button>`;
-    return html + `</div>`;
+/* ══════════════════════════════════════════════════════════
+   FULL CREDITS
+   ══════════════════════════════════════════════════════════ */
+async function loadCredits(p) {
+    try {
+        const qs = p.type ? `?type=${p.type}` : '';
+        const data = await api(`/api/title/${p.id}${qs}`);
+        const cast = data.cast || [];
+
+        let html = `<button class="back-btn" onclick="history.back()">← Back</button>`;
+        html += `<h1 style="margin-bottom:20px">${esc(data.title || data.primary_title)} — Full Cast</h1>`;
+
+        if (!cast.length) {
+            html += emptyHtml("👥", "No cast data available.");
+        } else {
+            html += `<div class="cast-grid">
+                ${cast.map(c => {
+                const cImg = poster(c.profile || c.profile_path, "w185");
+                const cId = c.id || c.nconst;
+                const char = c.character || (c.characters ? JSON.parse(c.characters)[0] : '');
+                return `<div class="cast-card" onclick="navigateTo('person',{id:'${cId}'})">
+                        <img class="cast-photo" src="${cImg}" alt="${esc(c.name || c.primary_name)}"
+                             loading="lazy" onerror="this.src='${PLACEHOLDER}'">
+                        <div class="cast-name">${esc(c.name || c.primary_name)}</div>
+                        <div class="cast-character">${esc(char)}</div>
+                    </div>`;
+            }).join('')}
+            </div>`;
+        }
+        content().innerHTML = html;
+    } catch (e) { content().innerHTML = errorHtml(e.message); }
 }
 
-// ── Error display ──
-function errorHtml(title, detail) {
-    return `<div class="empty-state"><div class="icon">⚠️</div><p><strong>${title}</strong></p><p style="font-size:0.85rem">${detail || ""}</p></div>`;
+/* ══════════════════════════════════════════════════════════
+   UI COMPONENTS
+   ══════════════════════════════════════════════════════════ */
+function loadingHtml() {
+    return `<div class="loading"><div class="spinner"></div><span>Loading...</span></div>`;
 }
+
+function errorHtml(msg) {
+    return `<div class="empty-state"><div class="icon">⚠️</div><p>${esc(msg)}</p>
+        <button class="back-btn" onclick="navigateTo('home')" style="margin:20px auto">← Home</button></div>`;
+}
+
+function emptyHtml(icon, msg) {
+    return `<div class="empty-state"><div class="icon">${icon}</div><p>${msg}</p></div>`;
+}
+
+function paginationHtml(page, totalPages, navFn) {
+    if (totalPages <= 1) return '';
+    return `<div class="pagination">
+        ${page > 1 ? `<button class="page-btn" onclick="${navFn(page - 1)}">← Prev</button>` : ''}
+        <span class="page-info">Page ${page} of ${totalPages}</span>
+        ${page < totalPages ? `<button class="page-btn" onclick="${navFn(page + 1)}">Next →</button>` : ''}
+    </div>`;
+}
+
+function skeletonGridHtml(n = 8) {
+    return `<div class="card-grid">${Array(n).fill(`
+        <div class="skeleton-card">
+            <div class="skeleton skeleton-poster"></div>
+            <div class="skeleton skeleton-text"></div>
+            <div class="skeleton skeleton-text short"></div>
+        </div>`).join('')}
+    </div>`;
+}
+
+/* ══════════════════════════════════════════════════════════
+   ANIMATIONS & INTERACTIONS
+   ══════════════════════════════════════════════════════════ */
+
+/* Scroll-triggered fade-in */
+function observeAnimations() {
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.classList.add('visible');
+                observer.unobserve(entry.target);
+            }
+        });
+    }, { threshold: 0.1 });
+    $$('.animate-in').forEach(el => observer.observe(el));
+}
+
+/* 3D Tilt Effect on Cards */
+function initTilt() {
+    $$('.card').forEach(card => {
+        card.addEventListener('mousemove', (e) => {
+            const rect = card.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            const cx = rect.width / 2;
+            const cy = rect.height / 2;
+            const rx = ((y - cy) / cy) * -6;
+            const ry = ((x - cx) / cx) * 6;
+            card.style.transform = `perspective(800px) rotateX(${rx}deg) rotateY(${ry}deg) translateY(-8px) scale(1.02)`;
+        });
+        card.addEventListener('mouseleave', () => {
+            card.style.transform = '';
+        });
+    });
+}
+
+/* Ripple effect on buttons */
+document.addEventListener('click', (e) => {
+    const btn = e.target.closest('.hero-cta, .filter-apply-btn, .page-btn, .action-btn');
+    if (!btn) return;
+    const rect = btn.getBoundingClientRect();
+    const ripple = document.createElement('span');
+    ripple.classList.add('ripple');
+    ripple.style.left = (e.clientX - rect.left) + 'px';
+    ripple.style.top = (e.clientY - rect.top) + 'px';
+    btn.appendChild(ripple);
+    setTimeout(() => ripple.remove(), 600);
+});
