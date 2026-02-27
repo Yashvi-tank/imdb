@@ -14,15 +14,26 @@ _pool = None
 def init_pool(minconn=2, maxconn=10):
     """Initialize the connection pool. Called once at app startup."""
     global _pool
-    _pool = pool.ThreadedConnectionPool(
-        minconn, maxconn,
-        host=os.getenv("DB_HOST", "localhost"),
-        port=int(os.getenv("DB_PORT", 5432)),
-        user=os.getenv("DB_USER", "postgres"),
-        password=os.getenv("DB_PASS", ""),
-        dbname=os.getenv("DB_NAME", "imdb_clone"),
-        options="-c statement_timeout=10000",   # 10s hard limit
-    )
+    database_url = os.getenv("DATABASE_URL")
+    if database_url:
+        # Render uses postgres:// but psycopg2 requires postgresql://
+        if database_url.startswith("postgres://"):
+            database_url = database_url.replace("postgres://", "postgresql://", 1)
+        _pool = pool.ThreadedConnectionPool(
+            minconn, maxconn,
+            dsn=database_url,
+            options="-c statement_timeout=10000",
+        )
+    else:
+        _pool = pool.ThreadedConnectionPool(
+            minconn, maxconn,
+            host=os.getenv("DB_HOST", "localhost"),
+            port=int(os.getenv("DB_PORT", 5432)),
+            user=os.getenv("DB_USER", "postgres"),
+            password=os.getenv("DB_PASS", ""),
+            dbname=os.getenv("DB_NAME", "imdb_clone"),
+            options="-c statement_timeout=10000",   # 10s hard limit
+        )
 
 
 def get_conn():

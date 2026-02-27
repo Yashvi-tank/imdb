@@ -1,0 +1,38 @@
+databases:
+  - name: cinevault-db
+    plan: free
+    databaseName: cinevault
+    user: cinevault_user
+
+services:
+  - type: web
+    name: cinevault
+    runtime: python
+    plan: free
+    buildCommand: |
+      pip install -r requirements.txt && python -c "
+      import os, psycopg2
+      url = os.getenv('DATABASE_URL','')
+      if url:
+          if url.startswith('postgres://'):
+              url = url.replace('postgres://','postgresql://',1)
+          conn = psycopg2.connect(url)
+          cur = conn.cursor()
+          cur.execute(open('schema/schema.sql').read())
+          conn.commit()
+          cur.close()
+          conn.close()
+          print('Schema applied successfully')
+      "
+    startCommand: gunicorn "webapp.backend.app:create_app()" --bind 0.0.0.0:$PORT --workers 2 --timeout 120
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: cinevault-db
+          property: connectionString
+      - key: TMDB_API_KEY
+        sync: false
+      - key: PYTHON_VERSION
+        value: "3.11.6"
+      - key: FLASK_DEBUG
+        value: "false"
